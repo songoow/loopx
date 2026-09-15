@@ -205,7 +205,7 @@ the TypeScript runtime each own one spelling of the same idea.
   producer and must be registered as one. Enforced from M0.5.
 - **I12 Every kernel value is produced.** For a `kernel` vocabulary, every
   value not listed under `compatibility_only` has at least one production site
-  the fixed production forms recognise or a `variable_sourced_values` entry. A
+  the fixed production forms recognise or an executable witness at a registered input decoder. A variable-source note alone is not production evidence. A
   value that is only compared is dead or compatibility-only, never canonical.
   `skip` in `effective_action` is the first expected failure. Enforced from
   M0.5; at M0 the literal scan accepts a compared value as carried.
@@ -360,6 +360,57 @@ when a value is added or removed after M0.5; `cross_module` only if promoted
 whose listed symbol is a journal or receipt writer marks the vocabulary
 `persisted`, which is the fact Q2 and Q10 wait on.
 
+### Executable production evidence during M0.5/M1
+
+The producer guard and the owner-carrier check have separate evidence. Defining
+an enum member proves membership, not production. For each vocabulary with
+producer metadata, the guard compares observed result values against `values`,
+rejects undeclared **function sites**, and checks that every non-compatibility
+value has an observed producer. A variable-source note is not liveness evidence.
+`return_producers` lists the registered functions whose scalar return expressions
+belong to this vocabulary; packet builders' unrelated return text is excluded.
+
+Python field assignments (including subscript/attribute and annotated writes),
+dictionaries, call keywords, owner-member results and declared scalar returns
+are parsed with AST. Imported enum aliases resolve only to the registered owner;
+shadowed names, reassignments and unresolved calls remain unknown. Conditional
+results exclude the condition's literals. TypeScript object writes, assignments
+and declared returns use the repository's TypeScript parser rather than regex.
+Neither parser executes inspected source. These are syntactic result witnesses,
+not a proof of reachability or whole-program data flow.
+
+`python3.11 examples/semantic-vocabulary-drift-smoke.py --report` lists unresolved
+production locations. Unknown expressions cannot supply missing value evidence.
+The producer guard covers all six kernel entries using distinct evidence lanes:
+`effective_action`, `turn_route`, `loop_disposition`, and
+`agent_scope_frontier_action` have source witnesses; `turn_result_kind` also has
+executable input witnesses at the fixed `transaction._result_kind` decoder.
+For each registered value the real decoder must return the matching typed member;
+invalid probes must report rejection. This proves a permitted production path,
+not that a Host has emitted every member or that every host execution is valid.
+`input_producer` cannot select arbitrary code: the verifier is fixed in the smoke.
+
+`lease_action` is explicitly legacy/compatibility-only: in-repository runtime
+callers use separate acquire/renew/transfer/release command classes. Its four
+members remain available to the existing typed `LeaseModeGateCommand` input
+interface until M4 caller/migration review. No persisted usage is asserted.
+The producer list is empty only because every value carries an explicit reason
+and retirement milestone. A newly observed producer invalidates that declaration. Kernel families without producer metadata are printed as coverage pending; their
+owner parity must not be reported as I12/I13 completion. M0.5 remains incomplete
+until all required families meet its acceptance rows.
+
+The decision owner includes five existing results previously missed by the
+literal scanner: `blocked_health`, `blocked_wait`, `control_plane_repair`,
+`operator_gate_notify`, and `throttled_skip`. Registering them preserves the
+existing quota behavior. `skip` and the synthetic legacy `operator_gate` admission
+remain compatibility-only pending M1 cleanup; persisted usage is not established.
+Replay and frontier separation, generated bindings and legacy retirement remain
+subsequent acceptance obligations, not consequences of this check passing.
+
+Preparation for the TypeScript parser: `npm ci --ignore-scripts` from the
+repository root, using its lockfile. The scan itself needs no network or
+credentials. Python 3.11+ and the repository-supported Node runtime are required.
+
 ### Formal model and proof boundary
 
 The registry is a finite specification of a larger program semantics. Let
@@ -418,8 +469,9 @@ vocabulary key fails the smoke.
 | `vocabularies.<name>.literal_scan` | `field`, roots, suffixes | Every literal the fixed dispatch forms capture is registered; every registered value is captured or variable-sourced (I2) |
 | `vocabularies.<name>.variable_sourced_values` | value to producer module | The producer still contains the quoted value |
 | `scope_declarations.<name>` (M0.5a) | `bounded_context` and its context IDs, each with one `module::Symbol` owner | Every declared name resolves to one inventory fork, names every defining module exactly once, and is excluded only from `multi_value_forks_semantic`; undeclared forks remain visible (I14) |
-| `vocabularies.<name>.producers` (M0.5) | `path::Symbol` sites that write the field, required for `kernel` | Every site writes registered values only; every value not under `compatibility_only` has at least one site or a variable-sourced entry (I12, I13) |
-| `vocabularies.<name>.compatibility_only` (M0.5) | values kept so readers of persisted records still resolve them | Subset of `values`; zero production sites; each carries a `value_notes` reason and a retirement milestone |
+| `vocabularies.<name>.input_producer` | Fixed executable decoder witness, currently `turn_result_kind` only | Every registered input produces the matching typed member and invalid probes reject; arbitrary callable selection is forbidden |
+| `vocabularies.<name>.producers` (M0.5) | `path::Symbol` sites that write the field, required for `kernel` | Every site writes registered values only; every value not under `compatibility_only` has at least one source site or executable input witness (I12, I13) |
+| `vocabularies.<name>.compatibility_only` (M0.5) | values retained for persisted readers or a legacy typed caller interface | Subset of `values`; zero production sites; each carries a `value_notes` reason and a retirement milestone |
 | `formal_model` | finite universes, role relations and hierarchy, semantic obligations, and established/bounded/unproved claims | Exact schema, role hierarchy, and invariant ids are checked by the drift smoke; enforcement stages cannot be mistaken for completed proofs |
 | `formal_model.enforcement_policy` | blocking-now, blocking-next, advisory, and unproved lanes | Every formal invariant appears exactly once and its lane agrees with its enforcement stage |
 | `vocabularies.<name>.value_notes`, `deprecated_values` | per-value review notes; values slated for removal | Names must be registered values |
@@ -705,20 +757,19 @@ introduce a competing target state.
    `wait`), and `stop`, `terminal`, `contract_error` exist on one side only.
    The `same_concept` relations record the four shared verdicts.
    Recommendation: keep both, publish the projection in M2, revisit after the
-   managed-step consumer matures. Needed before M2. The stated reason for
-   keeping both is that merging would touch persisted Turn records; that
-   premise is unverified. Before deciding, the M0.5 production-form scan (I12,
-   Section 5) applied to `turn_route` should establish
-   whether `turn_route` is ever written to the journal or a receipt, or only
-   flows in-process; if the latter, the cost of a merge is far lower than this
-   RFC assumes and Q10 applies.
-3. **Owner module for `EffectiveAction`.** The registry declares no owner
-   today because no symbol exists; the literal scan is the only check.
-   Options: `quota/should_run_packet.py` (largest producer), a new
-   `quota/effective_action.py`, or the TypeScript `turn_envelope.ts` with a
-   Python import per the migration RFC. Recommendation: TypeScript owner with
-   generated Python binding only if M2 lands first; otherwise
-   `quota/effective_action.py`. Needed before M1.
+   managed-step consumer matures. The persistence premise is now established:
+   `run_loopx_turn_once` writes `plan: dict(plan)` through the TypeScript journal
+   writer, including `plan.route.kind`; `load_loopx_turn_plan_from_journal`
+   restores that route. The executor replay regression checks an actual journal
+   on disk and the resume reader. Keep the three vocabularies and publish the
+   non-injective projection in M2; any later renaming needs a persisted-plan
+   migration, not just an in-process enum refactor. This evidence does not prove
+   compatibility of every external reader or every other persisted field.
+3. **Owner module for `EffectiveAction`.** The implementation uses
+   `quota/effective_action.py`, matching the pre-generation option. Its runtime
+   callers serialize `.value` to preserve existing strings. M2 may generate this
+   binding from the shared contract, retaining the existing import path. No
+   second independent value list may be introduced into a runtime module.
 4. **Companion glossary.** Whether to add `docs/reference/glossary.md`
    generated from the registry `meaning` fields and the inventory. Owner: docs
    maintainers. Recommendation: yes, in M1, generated so it cannot drift.
@@ -755,11 +806,10 @@ introduce a competing target state.
    list, not its task list.
 10. **Target state for the Turn vocabularies.** Section 11's target table
    keeps three sets and seven redundant spellings by default because Q2
-   recommends keeping both. If the M0.5 production-form scan in Q2 shows `turn_route` is
-   not persisted, the maintainers should choose between (a) three sets with a
-   generated projection, the current plan, and (b) a two-phase merge (dual-
-   write, then retire) to one spelling per concept. Without this decision the
-   RFC has budgets but no definition of done for its headline problem.
+   recommends keeping both. Q2's writer/readback evidence shows that `turn_route`
+   is persisted. The implementation therefore retains three distinct value sets
+   and generates their projection; it does not merge spellings. A future proposal
+   to merge them must provide a dual-read/versioned migration and reader proof.
    Owner: Turn driver owner. Needed before M2 closes.
 11. **Retirement budgets by identifier.** The six legacy-field budgets now use
    `count_identifier_modules()`, so `goal_boundary_repair` is not counted as

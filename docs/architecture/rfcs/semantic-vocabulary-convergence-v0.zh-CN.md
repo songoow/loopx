@@ -171,8 +171,9 @@ todos、capabilities 与 TypeScript 运行时各自拥有同一想法的一种�
   比较、序列化或展示一个值不带来任何所有权。开始写入值的解释者或透传者已经
   变成生产者，必须登记为生产者。自 M0.5 起强制。
 - **I12 每个内核值都被生产。** 对 `kernel` 词表，未列入 `compatibility_only`
-  的每个值至少有一个固定生产形式能识别的生产位点，或一条
-  `variable_sourced_values`。只被比较的值是死值或兼容值，绝不是 canonical。
+  的每个值至少有一个固定生产形式能识别的生产位点，或已登记输入解码器的
+  可执行见证。变量来源备注本身不能作为生产证据。只被比较的值是死值或兼容值，
+  绝不是 canonical。
   `effective_action` 的 `skip` 是第一个预期失败。自 M0.5 起强制；M0 的字面量
   扫描把被比较的值当作已携带。
 - **I13 生产者只写注册值。** 写入注册集合之外值的生产位点失败即关闭，与是否
@@ -296,6 +297,47 @@ M0.5 之后新增或删除值时；`cross_module` 只在晋升后（Q8）。持�
 答的属性：若某个已列生产者符号是 journal 或 receipt 的写方，该词表标为
 `persisted`，这正是 Q2 与 Q10 等待的事实。
 
+### M0.5/M1 的可执行生产证据
+
+生产者守卫与 owner 载体检查使用不同证据。定义枚举成员只能证明集合成员关系，
+不能证明生产。对带生产者元数据的词表，守卫比较观察到的结果值与 `values`，拒绝
+未登记的**函数位点**，并要求每个非兼容值存在观察到的生产者。变量来源备注不能
+替代存活证据。`return_producers` 列出其标量返回表达式属于该词表的已登记函数；
+返回整个 packet 的构建器不会因此把无关返回文字当作词表值。
+
+Python 通过 AST 解析字段赋值（含下标、属性及带注解赋值）、字典、调用关键字、
+owner 成员结果及声明函数的标量返回。导入枚举的别名只解析到已登记 owner；
+被遮蔽的名字、重复赋值及未解析调用仍为 unknown。条件表达式只检查结果分支，
+排除条件中的字面量。TypeScript 的对象写入、赋值及声明返回使用仓库的 TypeScript
+解析器。两个解析器都不执行被检查源码。这些是句法结果证据，不是可达性或全程序
+数据流证明。
+
+`python3.11 examples/semantic-vocabulary-drift-smoke.py --report` 列出未解析的生产
+位置。unknown 不能补足缺失值的生产证据。生产者守卫对六个 kernel 条目使用不同证据：`effective_action`、`turn_route`、
+`loop_disposition` 和 `agent_scope_frontier_action` 使用源码见证；
+`turn_result_kind` 另有固定入口 `transaction._result_kind` 的可执行输入见证。
+真实解码器必须为每个注册输入返回相同的类型化成员，并拒绝非法探测输入。这证明
+存在允许的生产路径，不表示 Host 实际发出过全部成员或所有 Host 执行都合法。
+`input_producer` 不能从数据任意指定执行代码，验证入口固定在 smoke 中。
+
+`lease_action` 明确分类为 legacy/兼容保留：仓库运行时调用者使用分开的
+acquire/renew/transfer/release command 类。四个成员为旧的类型化
+`LeaseModeGateCommand` 输入接口保留到 M4 调用者/迁移评审；不声称存在持久化
+使用。只有每个值都带保留理由及退休里程碑时，生产者列表才能为空。新发现的
+生产者必须让原兼容声明失败。
+没有生产者元数据的 kernel 词表会明确
+报告为覆盖待完成，不能把 owner 一致性宣称为 I12/I13 完成。所有要求的词表通过
+相应验收行之前，M0.5 仍未完成。
+
+decision owner 补登记了旧字面量扫描漏掉的五个现存结果：`blocked_health`、
+`blocked_wait`、`control_plane_repair`、`operator_gate_notify` 和 `throttled_skip`。
+这些登记保留现有 quota 行为。`skip` 和合成夹具使用的旧 `operator_gate` 暂保留为
+兼容值，等待 M1 清理；尚未建立它们的持久化使用证据。replay/frontier 拆分、生成
+绑定及旧字段退休仍须分别验收，不能由本次检查通过推出。
+
+TypeScript 解析器准备命令是在仓库根目录执行 `npm ci --ignore-scripts`，使用仓库
+锁文件。扫描本身不需网络或凭据；需要 Python 3.11+ 和仓库支持的 Node 运行时。
+
 ### 形式模型与证明边界
 
 注册表是更大程序语义的有限规格。令 `V` 为已注册词表集合，`Val(v)` 为词表
@@ -342,8 +384,9 @@ R ⊆ S × V × Version               将值持久化
 | `vocabularies.<name>.literal_scan` | `field`、根目录、后缀 | 固定分发形式捕获的每个字面量都已注册；每个注册值被捕获或来自变量（I2） |
 | `vocabularies.<name>.variable_sourced_values` | 值到生产者模块 | 生产者仍包含带引号的该值 |
 | `scope_declarations.<name>`（M0.5a） | `bounded_context` 及上下文 ID，每个上下文含一个 `module::Symbol` owner | 每个声明名对应一个 inventory 分叉，并且一次且仅一次列出全部定义模块；只从 `multi_value_forks_semantic` 排除，未声明分叉仍可见（I14） |
-| `vocabularies.<name>.producers`（M0.5） | 写入该字段的 `path::Symbol` 位点，`kernel` 必填 | 每个位点只写注册值；未列入 `compatibility_only` 的每个值至少有一个位点或一条变量来源条目（I12、I13） |
-| `vocabularies.<name>.compatibility_only`（M0.5） | 为让已持久化记录的读者仍能解析而保留的值 | `values` 的子集；零生产位点；每个值带 `value_notes` 理由与退休里程碑 |
+| `vocabularies.<name>.input_producer` | 固定的可执行解码入口，目前仅用于 `turn_result_kind` | 每个注册输入必须产生匹配的类型化成员，非法探测输入必须拒绝；禁止任意选择执行入口 |
+| `vocabularies.<name>.producers`（M0.5） | 写入该字段的 `path::Symbol` 位点，`kernel` 必填 | 每个位点只写注册值；未列入 `compatibility_only` 的每个值至少有一个源码生产位点或可执行输入见证（I12、I13） |
+| `vocabularies.<name>.compatibility_only`（M0.5） | 为持久化读者或旧类型化调用接口保留的值 | `values` 的子集；零生产位点；每个值带 `value_notes` 理由与退休里程碑 |
 | `formal_model` | 有限的集合、角色关系与层次、语义义务，以及已建立/有界/未证明的声明 | 漂移 smoke 校验精确 schema、角色层次和不变量 ID；属性实施阶段不能冒充已完成证明 |
 | `formal_model.enforcement_policy` | 当前阻断、下一阶段阻断、建议性和未证明层级 | 每个形式不变量恰好出现一次，且层级与其实施阶段一致 |
 | `vocabularies.<name>.value_notes`、`deprecated_values` | 逐值评审备注；计划删除的值 | 名字必须是已注册值 |
@@ -442,7 +485,8 @@ PR 中重新生成清单。
 | 两处 owner 修正不改变行为 | `pytest tests/test_loopx_turn_transaction.py tests/test_loop_turn_loop_controller.py tests/test_turn_loop_disposition.py tests/test_loopx_turn_managed_step.py tests/control_plane -k authority` 与 `loopx canary premerge --from-git-diff` | 通过 | 在干净树上可复现的 `main` 既有环境失败除外 |
 | 文档治理接受这对 RFC | `python3 examples/docs-governance-smoke.py` | 通过 | 检查镜像、链接、索引 |
 | 退休预算按子串而非标识符计数 | 分别以 `in file.text` 与 `\bgoal_boundary\b` 统计 `goal_boundary` | 基线上 35 对 30 个 Python 模块 | 已知边界；M3 的零读者门需要标识符计数，见第 12 节 |
-| 模块局部约定过滤器是一次代码修改 | 扩宽 `inventory.py` 的 `MODULE_LOCAL_CONVENTION` 并重新生成 | `*_semantic` 预算下降而别处无代码改动 | 已知边界；正则在代码里，扩宽是可评审的 diff，未过滤总数仍在预算内 || 无人生产的注册值失败（M0.5） | 在基线上运行生产形式扫描 | 失败并点名 `effective_action` 与 `skip`；删除 `skip` 或列入 `compatibility_only` 后通过 | 第一个预期的 I12 失败；只被比较的值不算已携带 |
+| 模块局部约定过滤器是一次代码修改 | 扩宽 `inventory.py` 的 `MODULE_LOCAL_CONVENTION` 并重新生成 | `*_semantic` 预算下降而别处无代码改动 | 已知边界；正则在代码里，扩宽是可评审的 diff，未过滤总数仍在预算内 |
+| 无人生产的注册值失败（M0.5） | 在基线上运行生产形式扫描 | 失败并点名 `effective_action` 与 `skip`；删除 `skip` 或列入 `compatibility_only` 后通过 | 第一个预期的 I12 失败；只被比较的值不算已携带 |
 | 生产未注册值失败（M0.5） | 在某个已列生产位点写 `effective_action: "brand_new"` | 即使无消费者比较它也失败，并点名位点与值 | I13；生产比比较更严 |
 | 有界上下文名字只能靠声明离开语义分叉预算（M0.5a） | 为 `SOURCE_SURFACES` 声明四个上下文；另行只改名其中一处定义而不声明 | 原始 `multi_value_forks` 保持 4，`multi_value_forks_semantic` 为 3；单独改名既不改变语义计数，也不构成声明 | I14；诚实的修法是评审者看得见的注册表修改，改名不是修复 |
 
@@ -583,16 +627,16 @@ planner 条目则有意保留 `python3`。
    投影覆盖全部输入但非单射（`blocked` 与 `wait` 都映到 `wait`），而 `stop`、
    `terminal`、`contract_error` 只在一侧存在。`same_concept` 关系记录了四个共享
    裁决。建议：两者都保留，M2 发布投影，待 managed-step 消费者成熟后再议。
-   M2 前需定。保留两者的理由是合并会触及已持久化的 Turn 记录；这个前提尚未
-   核实。决定之前应先用 M0.5 的生产形式扫描（I12，第 5 节）确认 `turn_route`
-   是否曾写入 journal 或
-   receipt，还是只在进程内流转；若是后者，合并的代价远低于本 RFC 的假设，
-   适用 Q10。
-3. **`EffectiveAction` 的 owner 模块。** 注册表今天不声明 owner，因为不存在任何
-   符号；字面量扫描是唯一检查。选项：`quota/should_run_packet.py`（最大生产者）、
-   新建 `quota/effective_action.py`，或按迁移 RFC 以 TypeScript `turn_envelope.ts`
-   为 owner 并生成 Python 绑定。建议：若 M2 先落地则以 TypeScript 为 owner 并
-   生成 Python 绑定；否则新建 `quota/effective_action.py`。M1 前需定。
+   持久化前提已有实现证据：`run_loopx_turn_once` 经 TypeScript journal writer
+   写入完整的 `plan: dict(plan)`，其中包含 `plan.route.kind`；
+   `load_loopx_turn_plan_from_journal` 会恢复这个 route。执行器的回放回归用例
+   检查实际落盘的 journal 及恢复读者。因此保留三套词表，在 M2 发布非单射投影；
+   后续若改名，必须迁移持久化 plan，不能只做进程内枚举重构。此证据不等于全部
+   外部读者或其他持久化字段的兼容性证明。
+3. **`EffectiveAction` 的 owner 模块。** 实现选择 `quota/effective_action.py`，
+   对应生成阶段之前的选项。运行时调用者通过 `.value` 保留现有字符串。M2 可以
+   从共享契约生成该绑定，并保留现有 import 路径；不得在运行时模块另写一份
+   独立维护的值表。
 4. **伴随术语表。** 是否新增 `docs/reference/glossary.md`，从注册表的 `meaning`
    字段与清单生成。Owner：文档维护者。建议：是，在 M1 生成以免漂移。
 5. **词族命名规则。** `gate`、`scope`、`packet`、`handoff`、`settlement` 词族中的
@@ -618,10 +662,9 @@ planner 条目则有意保留 `python3`。
    一次则改 (a)。Owner：仓库维护者。这是运维决策不是代码改动；应放在跟踪
    issue 的决策清单里，而不是任务清单里。
 10. **Turn 词表的终态。** 第 11 节的目标表默认保留三套与七个冗余拼法，因为
-   Q2 建议保留两者。若 Q2 的 M0.5 生产形式扫描表明 `turn_route` 未被持久化，维护者
-   应在 (a) 三套加生成投影（现行计划）与 (b) 两阶段合并（先双写、后退休）到
-   每个概念一种拼法之间选择。没有这个决定，RFC 对其标题问题只有预算、没有
-   完成定义。Owner：Turn driver owner。M2 关闭前需定。
+   Q2 建议保留两者。Q2 的实际写入及读回证据证明 `turn_route` 已持久化，因此
+   实现保留三套不同值集并生成投影，不合并拼法。未来合并提案须提供双读或带版本
+   的迁移及读者证据。Owner：Turn driver owner。
 11. **退休预算使用独立字段 token。** 六个旧字段预算现在使用
    `count_identifier_modules()`，因此 `goal_boundary_repair` 不会被算作
    `goal_boundary`。这是保守的词法指标，不等于证明不存在语义读者；计算式访问

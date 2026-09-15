@@ -44,6 +44,8 @@ class EffectiveAction(str, Enum):
     TERMINAL_NO_FOLLOWUP = "terminal_no_followup"
     TODO_DECISION_SCOPE_PROJECTION_REPAIR = "todo_decision_scope_projection_repair"
     UNSETTLED_HOST_TURN_RECOVERY = "unsettled_host_turn_recovery"
-
-
-EFFECTIVE_ACTION_VALUES = tuple(item.value for item in EffectiveAction)
+    BLOCKED_HEALTH = "blocked_health"
+    BLOCKED_WAIT = "blocked_wait"
+    CONTROL_PLANE_REPAIR = "control_plane_repair"
+    OPERATOR_GATE_NOTIFY = "operator_gate_notify"
+    THROTTLED_SKIP = "throttled_skip"

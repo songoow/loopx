@@ -115,3 +115,36 @@ def test_bounded_context_scope_requires_every_distinct_defining_module() -> None
     inventory = smoke["build_inventory"](REPO_ROOT, sources=sources)
     with pytest.raises(smoke["Drift"], match="every defining module"):
         smoke["check_scope_declarations"](registry, inventory)
+
+
+@pytest.mark.parametrize("text, expected", [
+    ('payload["effective_action"] = "new_action"', {"new_action"}),
+    ('route.effective_action: str = "new_action"', {"new_action"}),
+    ('Packet(effective_action="new_action")', {"new_action"}),
+    ('payload = {"effective_action":\n "left" if flag == "condition" else "right"}', {"left", "right"}),
+    ('effective_action = payload.get("effective_action", "fallback")', set()),
+    ('effective_action == "not_produced"', set()),
+    ('# effective_action = "comment"', set()),
+    ('example = \'effective_action = "example"\'', set()),
+])
+def test_python_production_forms_separate_result_from_context(text, expected) -> None:
+    smoke = runpy.run_path(str(SMOKE))
+    source = smoke["SourceFile"]("loopx/control_plane/quota/probe.py", ".py", text)
+    assert smoke["_producer_literals"]("effective_action", source) == expected
+
+
+def test_return_producer_scope_cannot_be_removed_from_registry():
+    smoke = runpy.run_path(str(SMOKE))
+    registry = copy.deepcopy(smoke['load_registry']())
+    registry['vocabularies']['effective_action']['return_producers'] = []
+    with pytest.raises(smoke['Drift'], match='RETURN_PRODUCER_ANCHOR'):
+        smoke['check_coverage_floor'](registry)
+
+
+@pytest.mark.parametrize('name', ['turn_route', 'loop_disposition', 'agent_scope_frontier_action'])
+def test_registered_kernel_producer_coverage_cannot_be_removed(name):
+    smoke = runpy.run_path(str(SMOKE))
+    registry = copy.deepcopy(smoke['load_registry']())
+    registry['vocabularies'][name].pop('producers')
+    with pytest.raises(smoke['Drift'], match='PRODUCER_VOCABULARY_ANCHOR'):
+        smoke['check_coverage_floor'](registry)

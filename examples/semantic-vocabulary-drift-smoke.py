@@ -34,6 +34,11 @@ from loopx.semantics.inventory import (  # noqa: E402
     typescript_facts,
 )
 
+from loopx.semantics.production import (  # noqa: E402
+    collect_production, validate_production, probe_turn_result_input_domain,
+)
+from loopx.semantics.python_production import scan_python_production  # noqa: E402
+
 REGISTRY_PATH = REPO_ROOT / "loopx" / "semantics" / "vocabulary_v0.json"
 REGISTRY_SCHEMA_VERSION = "loopx_semantic_vocabulary_v0"
 VALUE_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -54,6 +59,8 @@ VOCABULARY_OPTIONAL_KEYS = {
     "deprecated_values",
     "producers",
     "compatibility_only",
+    "return_producers",
+    "input_producer",
 }
 TIERS = {"kernel", "cross_runtime", "cross_module"}
 STATUSES = {"canonical", "legacy", "merge_candidate"}
@@ -86,7 +93,7 @@ FORMAL_POLICY_KEYS = {"blocking_now", "blocking_next", "advisory", "unproved"}
 # silently; that is the gap the anchor exists to close.
 COVERAGE_ANCHOR = {
     "vocabularies": 26,
-    "owner_symbols": 46,
+    "owner_symbols": 47,
     "literal_scan_fields": 1,
     "projections": 1,
     "relations": 9,
@@ -94,6 +101,14 @@ COVERAGE_ANCHOR = {
 }
 COVERAGE_SUFFIX_ANCHOR = (".py", ".ts")
 LITERAL_SCAN_ROOTS = ["loopx"]
+PRODUCER_VOCABULARY_ANCHOR = {
+    "effective_action", "turn_route", "loop_disposition", "agent_scope_frontier_action", "turn_result_kind", "lease_action",
+}
+RETURN_PRODUCER_ANCHOR = {
+    "turn_route": {"loopx/control_plane/turn_driver/driver.py::_typed_route", "loopx/control_plane/turn_driver/loop_controller.py::_envelope_route"},
+    "loop_disposition": {"loopx/control_plane/turn_driver/loop_controller.py::_route_to_disposition"},
+    "effective_action": {"loopx/control_plane/quota/decision_summary.py::quota_effective_action"},
+}
 TWIN_ROOT_ANCHOR = "loopx/control_plane"
 TWIN_BUDGET_ANCHOR = 43
 BUDGET_ANCHOR = {
@@ -195,8 +210,15 @@ def load_registry() -> dict[str, Any]:
         require(set(vocabulary.get("deprecated_values", [])) <= set(values), f"{name}: deprecated_values must be a subset of values")
         producers = vocabulary.get("producers")
         if producers is not None:
-            require(isinstance(producers, list) and producers, f"{name}: producers must be a non-empty list")
+            require(isinstance(producers, list), f"{name}: producers must be a list")
+            require(bool(producers) or set(vocabulary.get('compatibility_only', {})) == set(values), f"{name}: empty producers require every value to be compatibility-only")
             require(all(isinstance(site, str) and OWNER_SHAPE.match(site) for site in producers), f"{name}: producers must be module::Symbol sites")
+        if 'input_producer' in vocabulary:
+            require(name == 'turn_result_kind', f"{name}: no executable input producer verifier is implemented")
+            require(vocabulary['input_producer'] == 'loopx/control_plane/turn_driver/transaction.py::_result_kind', f"{name}: unrecognised input producer")
+        returns = vocabulary.get("return_producers", [])
+        require(isinstance(returns, list) and all(isinstance(site, str) and OWNER_SHAPE.match(site) for site in returns), f"{name}: return_producers must be module::Symbol sites")
+        require(set(returns) <= set(producers or []), f"{name}: return_producers must also be registered producers")
         compatibility = vocabulary.get("compatibility_only")
         if compatibility is not None:
             require(isinstance(compatibility, dict), f"{name}: compatibility_only must be an object")
@@ -259,6 +281,15 @@ def check_formal_model(model: dict[str, Any]) -> None:
 
 
 def check_coverage_floor(registry: dict[str, Any]) -> str:
+    require(
+        registry['vocabularies']['turn_result_kind'].get('input_producer') == 'loopx/control_plane/turn_driver/transaction.py::_result_kind',
+        'turn_result_kind: input producer coverage must retain the anchored decoder',
+    )
+    for name in PRODUCER_VOCABULARY_ANCHOR:
+        require("producers" in registry["vocabularies"][name], f"{name}: producer coverage dropped below PRODUCER_VOCABULARY_ANCHOR")
+    for name, required in RETURN_PRODUCER_ANCHOR.items():
+        actual_returns = set(registry['vocabularies'][name].get('return_producers', []))
+        require(required <= actual_returns, f"{name}: return producer coverage dropped below RETURN_PRODUCER_ANCHOR")
     for vocabulary in registry["vocabularies"].values():
         if scan := vocabulary.get("literal_scan"):
             require(scan["roots"] == LITERAL_SCAN_ROOTS, "literal_scan roots must cover loopx")
@@ -368,110 +399,43 @@ def check_literal_vocabularies(registry: dict[str, Any], sources: list[SourceFil
         for value, producer in variable_sourced.items():
             text = (REPO_ROOT / producer).read_text(encoding="utf-8", errors="replace")
             require(f'"{value}"' in text, f"{name}: variable-sourced value {value} is no longer produced by {producer}")
-        unused = sorted(expected - set(observed) - set(variable_sourced))
+        owner_values_seen = {
+            value
+            for owner in vocabulary["owners"].values()
+            if owner
+            for value in owner_values(owner)
+        }
+        unused = sorted(
+            expected - set(observed) - set(variable_sourced) - owner_values_seen
+        )
         require(not unused, f"{name}: registry lists values no module carries: {unused}")
 
 
 # --- bounded producer scan ----------------------------------------------------------
 
 
-PRODUCER_ROOTS = (
-    "loopx/cli_commands",
-    "loopx/control_plane/agents",
-    "loopx/control_plane/quota",
-    "loopx/control_plane/todos",
-    "loopx/control_plane/turn_driver",
-    "loopx/control_plane/work_items",
-)
-PRODUCER_ASSIGNMENT = re.compile(
-    r"(?:[\"']{field}[\"']\s*:\s*|\b{field}\s*=(?!=)\s*)(?P<rhs>[^\n}}]+)"
-)
-
-
 def _producer_literals(field: str, source: SourceFile) -> set[str]:
-    """Return literal strings on bounded field-write forms in one source.
-
-    This intentionally does not follow variables or infer consumers. A value
-    assembled through a variable must remain in ``variable_sourced_values`` or
-    in the owner enum, so the unresolved boundary stays visible.
-    """
-
-    pattern = re.compile(PRODUCER_ASSIGNMENT.pattern.format(field=re.escape(field)))
-    values: set[str] = set()
-    for match in pattern.finditer(source.text):
-        values.update(QUOTED.findall(match.group("rhs")))
-    return {value for value in values if value and value != field}
+    # Compatibility helper for direct-form mutation fixtures. No enum definitions
+    # are supplied, so these tests cannot accidentally count owners as producers.
+    if source.suffix != '.py':
+        return set()
+    rows = scan_python_production(source, field=field, enums={})
+    return set().union(*(row.values for row in rows))
 
 
-def _producer_site_exists(site: str, sources: list[SourceFile]) -> None:
-    require(OWNER_SHAPE.match(site) is not None, f"producer site must be module::Symbol: {site!r}")
-    module, symbol = site.split("::")
-    source_file = next((item for item in sources if item.path == module), None)
-    require(source_file is not None, f"producer site module does not exist: {site}")
-    if module.endswith(".py"):
-        definition = re.compile(rf"^\s*(?:async\s+)?def\s+{re.escape(symbol)}\s*\(", re.MULTILINE)
-    else:
-        definition = re.compile(rf"^\s*(?:export\s+)?(?:async\s+)?function\s+{re.escape(symbol)}\s*\(", re.MULTILINE)
-    require(definition.search(source_file.text) is not None, f"producer site symbol is not defined: {site}")
-
-
-def check_producers(registry: dict[str, Any], sources: list[SourceFile]) -> None:
-    """Enforce the bounded producer side of the formal model.
-
-    Owner carriers prove the finite value domain. Explicit producer metadata
-    identifies the control-plane sites covered by the structural write scan;
-    the scan rejects an unregistered literal even if no consumer compares it.
-    Dynamic producers remain outside this proof and stay in the formal boundary.
-    """
-
-    for name, vocabulary in registry["vocabularies"].items():
-        if vocabulary["tier"] != "kernel":
-            continue
-        owner_values_seen: set[str] = set()
-        for owner in vocabulary["owners"].values():
-            if owner:
-                owner_values_seen.update(owner_values(owner))
-        producers = vocabulary.get("producers", [])
-        if not producers:
-            require(owner_values_seen, f"{name}: kernel vocabularies need an owner or producer sites")
-            continue
-        for site in producers:
-            _producer_site_exists(site, sources)
-        declared_modules = {site.split("::", 1)[0] for site in producers}
-        scan = vocabulary.get("literal_scan")
-        if not scan:
-            continue
-        observed: dict[str, list[str]] = {}
-        for item in sources:
-            if item.suffix not in set(scan["suffixes"]):
-                continue
-            if not any(item.path.startswith(root + "/") for root in PRODUCER_ROOTS):
-                continue
-            for value in _producer_literals(scan["field"], item):
-                observed.setdefault(value, []).append(item.path)
-        unregistered = {
-            value: sorted(paths)
-            for value, paths in observed.items()
-            if value not in vocabulary["values"]
-        }
-        require(not unregistered, f"{name}: producer writes unregistered values: {unregistered}")
-        observed_modules = {path for paths in observed.values() for path in paths}
-        undeclared_modules = sorted(observed_modules - declared_modules)
-        require(not undeclared_modules, f"{name}: producer modules are missing from registry: {undeclared_modules}")
-        compatibility = vocabulary.get("compatibility_only", {})
-        require(set(compatibility) <= set(vocabulary["values"]), f"{name}: compatibility_only contains unregistered values")
-        require(
-            not set(compatibility).intersection(observed),
-            f"{name}: compatibility_only values are produced: {sorted(set(compatibility).intersection(observed))}",
-        )
-        uncovered = (
-            set(vocabulary["values"])
-            - owner_values_seen
-            - set(observed)
-            - set(vocabulary.get("variable_sourced_values", {}))
-            - set(compatibility)
-        )
-        require(not uncovered, f"{name}: values have no bounded producer or owner evidence: {sorted(uncovered)}")
+def check_producers(registry: dict[str, Any], sources: list[SourceFile]) -> list[str]:
+    unknown: list[str] = []
+    for name, vocabulary in registry['vocabularies'].items():
+        if 'producers' not in vocabulary:
+            continue  # Other kernel families retain an explicit M0.5 coverage gap.
+        try:
+            rows = collect_production(REPO_ROOT, vocabulary, sources)
+            if name == 'turn_result_kind':
+                rows.extend(probe_turn_result_input_domain(vocabulary))
+            unknown.extend(validate_production(name, vocabulary, rows))
+        except ValueError as error:
+            raise Drift(str(error)) from error
+    return sorted(set(unknown))
 
 
 # --- relations, projections, schema versions ----------------------------------------
@@ -654,7 +618,7 @@ def main() -> int:
     inventory, ratchets = check_inventory(registry, sources)
     check_owned_vocabularies(registry, inventory)
     check_literal_vocabularies(registry, sources)
-    check_producers(registry, sources)
+    unknown_producers = check_producers(registry, sources)
     check_relations(registry)
     check_projections(registry)
     check_schema_version_owners(registry, sources)
@@ -665,6 +629,12 @@ def main() -> int:
     print("  " + ratchets)
     print("  " + " ".join(budgets))
     print("  " + twins)
+    print(f"  unresolved_producer_sites={len(unknown_producers)} (not proven safe)")
+    uncovered = [name for name, v in registry['vocabularies'].items() if v['tier'] == 'kernel' and 'producers' not in v]
+    print(f"  kernel_producer_coverage_pending={','.join(uncovered)}")
+    if '--report' in sys.argv[1:]:
+        for site in unknown_producers:
+            print(f"  unknown_producer: {site}")
     return 0
 
 

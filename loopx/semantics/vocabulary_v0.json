@@ -118,7 +118,7 @@
   },
   "coverage_floor": {
     "vocabularies": 26,
-    "owner_symbols": 46,
+    "owner_symbols": 47,
     "literal_scan_fields": 1,
     "projections": 1,
     "relations": 9,
@@ -156,7 +156,15 @@
         "validation_failed": "Legacy failure class per turn-loop-controller-v0; always routes to repair.",
         "writeback_failed": "Legacy failure class per turn-loop-controller-v0; always routes to repair.",
         "quota_spend_failed": "Legacy failure class per turn-loop-controller-v0; always routes to repair."
-      }
+      },
+      "input_producer": "loopx/control_plane/turn_driver/transaction.py::_result_kind",
+      "producers": [
+        "loopx/control_plane/turn_driver/executor.py::_host_result_stage",
+        "loopx/control_plane/turn_driver/executor.py::_run_task_validator",
+        "loopx/control_plane/turn_driver/executor.py::_task_validation_receipt",
+        "loopx/control_plane/turn_driver/executor.py::_task_validation_stage",
+        "loopx/control_plane/turn_driver/transaction.py::_result_kind"
+      ]
     },
     "turn_route": {
       "meaning": "Typed delivery route derived from a fresh should-run decision before a Host is engaged.",
@@ -175,6 +183,16 @@
         "wait",
         "blocked",
         "contract_error"
+      ],
+      "producers": [
+        "loopx/control_plane/turn_driver/driver.py::_typed_route",
+        "loopx/control_plane/turn_driver/driver.py::build_loopx_turn_plan",
+        "loopx/control_plane/turn_driver/driver.py::reconcile_failed_turn_session_request",
+        "loopx/control_plane/turn_driver/loop_controller.py::_envelope_route"
+      ],
+      "return_producers": [
+        "loopx/control_plane/turn_driver/driver.py::_typed_route",
+        "loopx/control_plane/turn_driver/loop_controller.py::_envelope_route"
       ]
     },
     "loop_disposition": {
@@ -194,6 +212,15 @@
         "repair",
         "replan",
         "terminal"
+      ],
+      "producers": [
+        "loopx/control_plane/turn_driver/loop_controller.py::_completion_disposition",
+        "loopx/control_plane/turn_driver/loop_controller.py::_replan_disposition",
+        "loopx/control_plane/turn_driver/loop_controller.py::_route_to_disposition",
+        "loopx/control_plane/turn_driver/loop_controller.py::decide_loop_disposition"
+      ],
+      "return_producers": [
+        "loopx/control_plane/turn_driver/loop_controller.py::_route_to_disposition"
       ]
     },
     "agent_scope_frontier_action": {
@@ -209,12 +236,22 @@
         "agent_scope_wait",
         "reassignment_required",
         "successor_replan_required"
+      ],
+      "producers": [
+        "loopx/control_plane/agents/agent_scope.py::_blocked_successor_wait_frontier",
+        "loopx/control_plane/agents/agent_scope.py::_blocking_handoff_frontier",
+        "loopx/control_plane/agents/agent_scope.py::_cleared_handoff_frontier",
+        "loopx/control_plane/agents/agent_scope.py::_deferred_resume_frontier",
+        "loopx/control_plane/agents/agent_scope.py::_monitor_blocked_resume_frontier",
+        "loopx/control_plane/agents/agent_scope.py::_other_agent_or_exhausted_frontier",
+        "loopx/control_plane/agents/agent_scope.py::_route_continuation_frontier",
+        "loopx/control_plane/agents/agent_scope.py::_selected_candidate_priority_frontier"
       ]
     },
     "lease_action": {
       "meaning": "Authority-core lease mutation verb.",
       "tier": "kernel",
-      "status": "canonical",
+      "status": "legacy",
       "owners": {
         "python": "loopx/control_plane/coordination/authority_core.py::LeaseAction",
         "typescript": null
@@ -224,7 +261,32 @@
         "renew",
         "transfer",
         "release"
-      ]
+      ],
+      "producers": [],
+      "compatibility_only": {
+        "acquire": {
+          "reason": "Retained by the legacy typed LeaseModeGateCommand input interface; current in-repository runtime callers use the separate acquire/renew/transfer/release command classes, not this vocabulary. No persisted use is asserted.",
+          "retirement": "M4: retire the legacy Python lease-mode input interface after caller and migration review."
+        },
+        "renew": {
+          "reason": "Retained by the legacy typed LeaseModeGateCommand input interface; current in-repository runtime callers use the separate acquire/renew/transfer/release command classes, not this vocabulary. No persisted use is asserted.",
+          "retirement": "M4: retire the legacy Python lease-mode input interface after caller and migration review."
+        },
+        "transfer": {
+          "reason": "Retained by the legacy typed LeaseModeGateCommand input interface; current in-repository runtime callers use the separate acquire/renew/transfer/release command classes, not this vocabulary. No persisted use is asserted.",
+          "retirement": "M4: retire the legacy Python lease-mode input interface after caller and migration review."
+        },
+        "release": {
+          "reason": "Retained by the legacy typed LeaseModeGateCommand input interface; current in-repository runtime callers use the separate acquire/renew/transfer/release command classes, not this vocabulary. No persisted use is asserted.",
+          "retirement": "M4: retire the legacy Python lease-mode input interface after caller and migration review."
+        }
+      },
+      "value_notes": {
+        "acquire": "Compatibility-only input member; no observed in-repository producer. Preserve the typed caller interface until its M4 retirement review.",
+        "renew": "Compatibility-only input member; no observed in-repository producer. Preserve the typed caller interface until its M4 retirement review.",
+        "transfer": "Compatibility-only input member; no observed in-repository producer. Preserve the typed caller interface until its M4 retirement review.",
+        "release": "Compatibility-only input member; no observed in-repository producer. Preserve the typed caller interface until its M4 retirement review."
+      }
     },
     "effective_action": {
       "meaning": "Compacted should-run verdict carried by status/should-run payloads and the Turn Envelope; the Python enum owns the finite value domain while the wire field remains a string for compatibility.",
@@ -250,10 +312,13 @@
         "automation_prompt_upgrade_required",
         "autonomous_replan_required",
         "block_replay",
+        "blocked_health",
+        "blocked_wait",
         "boundary_projection_repair",
         "capability_bridge_repair",
         "control_plane_health_repair",
         "control_plane_projection_repair",
+        "control_plane_repair",
         "coordinate_task_bundle",
         "external_evidence_observe",
         "governed_capability_intent",
@@ -265,6 +330,7 @@
         "normal_run",
         "observe_replay",
         "operator_gate",
+        "operator_gate_notify",
         "operator_inbox_material_review_due",
         "outcome_floor_recovery",
         "peer_coordination_blocked",
@@ -276,6 +342,7 @@
         "skip",
         "state_projection_gap_repair",
         "terminal_no_followup",
+        "throttled_skip",
         "todo_decision_scope_projection_repair",
         "unsettled_host_turn_recovery"
       ],
@@ -285,12 +352,15 @@
       },
       "producers": [
         "loopx/cli_commands/quota.py::_apply_requested_quota_action_selection_preflight",
+        "loopx/control_plane/quota/decision_summary.py::_task_orchestration_effective_action",
+        "loopx/control_plane/quota/decision_summary.py::quota_effective_action",
         "loopx/control_plane/quota/decision_summary.py::resolve_quota_run_decision",
         "loopx/control_plane/quota/heartbeat_receipt.py::fail_heartbeat_receipt",
         "loopx/control_plane/quota/live_decision.py::_apply_pending_capability_intent_precedence",
         "loopx/control_plane/quota/projection_repair.py::build_boundary_projection_repair_hint",
         "loopx/control_plane/quota/projection_repair.py::build_state_projection_gap_repair_hint",
         "loopx/control_plane/quota/settlement_precedence.py::apply_settled_replay_payload_precedence",
+        "loopx/control_plane/quota/settlement_precedence.py::apply_settled_replay_route_precedence",
         "loopx/control_plane/quota/should_run.py::build_quota_paused_should_run_payload",
         "loopx/control_plane/quota/should_run_packet.py::_apply_agent_monitor_only_precedence",
         "loopx/control_plane/quota/should_run_packet.py::_resolve_quota_should_run_route",
@@ -299,12 +369,16 @@
         "loopx/control_plane/quota/unsettled_host_turn.py::apply_unsettled_host_turn_recovery_if_required",
         "loopx/control_plane/todos/decision_scope.py::build_required_decision_scope_repair_hint",
         "loopx/control_plane/todos/user_gate.py::apply_scoped_user_gate_fallback_projection",
-        "loopx/control_plane/turn_driver/turn_journal.ts::interpretTurnJournal"
+        "loopx/control_plane/turn_driver/turn_journal.ts::interpretTurnJournalEffect"
       ],
       "compatibility_only": {
         "skip": {
           "reason": "Historical comparison value; no bounded producer writes it into the decision slot.",
           "retirement": "M1 slot split and consumer cleanup"
+        },
+        "operator_gate": {
+          "reason": "Retained old vocabulary admission used by synthetic action-portfolio fixtures; current quota producer emits operator_gate_notify. Persisted use is not established.",
+          "retirement": "M1 fixture and legacy reader migration"
         }
       },
       "value_notes": {
@@ -312,8 +386,16 @@
         "observe_replay": "Written only by turn_journal.ts into the replay observation slot; not a should-run verdict. Slot split is RFC Section 12 Q6.",
         "block_replay": "Written only by turn_journal.ts into the replay observation slot; not a should-run verdict. Slot split is RFC Section 12 Q6.",
         "quota_action_selection_deferred": "Reaches the slot through the error_code variable in cli_commands/quota.py; an error code doubling as a verdict.",
-        "quota_action_selection_rejected": "Reaches the slot through the error_code variable in cli_commands/quota.py; an error code doubling as a verdict."
-      }
+        "quota_action_selection_rejected": "Reaches the slot through the error_code variable in cli_commands/quota.py; an error code doubling as a verdict.",
+        "blocked_health": "Existing result of quota_effective_action; previously missed because the literal scan did not inspect declared return functions.",
+        "blocked_wait": "Existing result of quota_effective_action; previously missed because the literal scan did not inspect declared return functions.",
+        "control_plane_repair": "Existing result of quota_effective_action; previously missed because the literal scan did not inspect declared return functions.",
+        "operator_gate_notify": "Existing result of quota_effective_action; previously missed because the literal scan did not inspect declared return functions.",
+        "throttled_skip": "Existing result of quota_effective_action; previously missed because the literal scan did not inspect declared return functions."
+      },
+      "return_producers": [
+        "loopx/control_plane/quota/decision_summary.py::quota_effective_action"
+      ]
     },
     "settlement_step_kind": {
       "meaning": "Effect-program settlement step executed for one Turn.",
