@@ -60,9 +60,9 @@ dated 2026-09-15 and is written to land with the managed stack:
 
 | Role | Source | Selection today | Promotion gate |
 | --- | --- | --- | --- |
-| Default managed execution host | LoopX Turn plus the `dsh` host adapter, bound to an operator-supplied model endpoint | shipped product default: `dsh` for bounded managed Turns, environment-independent; `LOOPX_TURN_HOST` re-points it and an explicit `--host` wins (PR #4443) | keep the typed host request/result, independent validation, and the operator-owned credential boundary; do not replace it without an equal or stronger contract |
+| Default managed execution host | LoopX Turn plus the `dsh` host adapter, bound to an operator-supplied model endpoint | shipped product default, credential-resolved: the managed `dsh` host when the operator credential is configured, the individual `codex-cli` host when it is not; `LOOPX_TURN_HOST` re-points whichever resolved and an explicit `--host` wins (PR #4443, default resolution with this change) | keep the typed host request/result, independent validation, and the operator-owned credential boundary; do not replace it without an equal or stronger contract |
 | Steward channel executor | the interactive Chat transport the steward answers on | shipped product default, credential-conditional: the managed host (`dsh`) when the operator credential is configured, `codex` when it is not; `LOOPX_MANAGER_ENDPOINT` re-points it and an explicit endpoint wins; selection landed in PR #4446, the conditional default and the segment transport land with this change | the segment transport's typed limits (no streaming, no cross-turn host session, read-only sandbox) stay disclosed and read back, and no managed lane may depend on an individual subscription |
-| Supported alternative Turn host | LoopX Turn plus the `codex-cli` adapter | explicitly selectable; it is the `individual` executor kind, so it is billed to one person's CLI login | no managed lane may silently depend on an individual's personal CLI subscription; an individual lane must be selected, not reached by default |
+| Supported alternative Turn host | LoopX Turn plus the `codex-cli` adapter | explicitly selectable, and the credential-resolved default of the managed row above on a machine with no operator credential; it is the `individual` executor kind, so it is billed to one person's CLI login | no managed lane may *silently* depend on an individual's personal CLI subscription: the individual host is reached only as that credential-resolved default and is read back as `no_operator_credential`, never substituted for a host the operator selected |
 | L1 event source and session-owning runtime candidate | DSH | opt-in, not promoted; the bounded Turn host role is the default row above | the C0, C1, overhead, retention and Mode B rows in this document being run and reviewed |
 | Optional visible host loop | Pi | not a managed runtime | declare a per-binding session mode with readback, prove single-executor behavior under restart, "conversation is not a receipt", non-authoritative host-local state, and one real-host restart row |
 
@@ -76,14 +76,24 @@ Flash) at reasoning effort `high`, an endpoint from the operator environment
 (`DEEPSEEK_API_KEY`).
 
 LoopX **selects** the default host for bounded managed Turns and never infers it
-(`loopx/control_plane/turn_driver/host_binding.py`): the shipped default is `dsh`,
-`LOOPX_TURN_HOST` re-points it, and an explicit `--host` wins over both. The
-operator credential is not a selection input. This distinction is the whole
-point of the binding: discovering a key is not a decision to change where work
-runs, and a surface that resolves its host from the environment makes a chosen
-configuration indistinguishable from an incidental one. A lane selected onto the
-DSH host therefore never depends on an individual developer's CLI subscription
-being available, funded, or logged in.
+from a launch-time surprise (`loopx/control_plane/turn_driver/host_binding.py`):
+an explicit `--host` or `LOOPX_TURN_HOST` always wins, and only when neither is
+configured is the shipped default resolved from the operator's own credential
+facts -- the managed `dsh` host when a credential exists, and the individual
+`codex-cli` host when one does not, because an unauthenticated managed host
+would refuse to run. The distinction that matters is between a *default* and a
+*decision*: a credential may resolve a default that would otherwise have to pick
+a host at random, but it never re-points a host the operator already selected.
+A lane resolved onto the DSH host therefore never depends on an individual
+developer's CLI subscription being available, funded, or logged in, and a lane
+without an operator credential never silently borrows one either.
+
+This change also rewrites the promotion gate on the supported alternative host
+in the table above. It read "an individual lane must be selected, not reached by
+default", which the credential-resolved default contradicts. The rewritten rule
+keeps the original intent -- no lane may depend on one person's login without
+the operator being able to see that it did -- and names the readback that makes
+the dependency visible instead of forbidding the disclosed default.
 
 The steward channel is a **different** surface, and after the revision recorded
 below its default is stated as one conditional rule instead of one host name:
@@ -107,14 +117,19 @@ effort `high`, overridable by `LOOPX_TURN_PROVIDER` / `LOOPX_TURN_MODEL` /
 when it is not the shipped one; it is one line because every plan payload carries
 it and the agent-facing output budget is a contract, and whichever values the
 line names are the values that run, so an owner-set model appears as itself.
-Credentials authenticate the selected profile; they never choose it.
+Credentials authenticate the selected profile and never choose it; the one
+thing a credential resolves is the shipped *host* default of a bounded Turn
+nobody selected, and that resolution carries its own readback source.
 
 Evidence for this binding, separated by source:
 
-- repository-covered without any provider call: the shipped default is `dsh`, an
-  explicit `LOOPX_TURN_HOST` re-points it, an explicit `--host` still wins, and a
-  configured credential changes none of those selections (tests in PR #4443, not
-  yet on `main`);
+- repository-covered without any provider call: with an operator credential the
+  shipped default is `dsh` and without one it is `codex-cli`, an explicit
+  `LOOPX_TURN_HOST` re-points either default, and an explicit `--host` still
+  wins over all of them (`tests/test_turn_default_host_binding.py`,
+  `tests/test_turn_managed_executor_binding.py`,
+  `examples/loopx-turn-managed-executor-binding-smoke.py`,
+  `examples/loopx-turn-managed-default-flow-smoke.py`);
 - local live qualification with the real SDK and runtime
   (`deepseek-harness-sdk==0.1.5rc1`, the pin PR #4420 proposes; `main` still
   pins `0.1.2a3` and the same pair also passed there): the in-process
@@ -359,9 +374,9 @@ failure, journal and quota semantics LoopX already validates; keep B as the
 cheaper replacement if the upstream interface appears; evaluate C only if
 duplex streaming is required for the steward experience. Whichever option ships
 must demonstrate, for one steward session, that the model work lands on the
-operator credential and that no default path reaches an individual
-subscription. This document authorizes no new scheduler, retry authority or
-second monitoring subsystem to make that demonstration pass.
+operator credential and that no default path of the steward channel reaches an
+individual subscription. This document authorizes no new scheduler, retry
+authority or second monitoring subsystem to make that demonstration pass.
 
 Option A is the one that shipped, and its demonstration is a repository smoke
 rather than a live transcript: `examples/loopx-steward-managed-chat-smoke.py`
@@ -386,7 +401,7 @@ operator-local path is recorded here.
 | Manager M2 — semantic continuation | Receiver resolution across registered running lanes; typed per-source coverage and freshness; a goal-level milestone the report can lead with instead of coverage disclaimers | Not implemented. Delegation resolves against the supplied delegation catalog, so a request whose owning lane is absent from that catalog is refused or routed to an unrelated lane; a provider read failure surfaces as raw error text instead of a typed source row; the manager context exposes deliveries and coverage but no goal-level milestone field to synthesize from |
 | Manager M3 — automatic complete exchange | A persisted answer that exceeds or violates the channel's outbound text contract is split and re-sent under a stable answer identity; an ambiguous or failed send is reconciled instead of replaced by a local notice; the return path survives a transport restart; rich markdown renders as structured text | Partially mitigated. `loopx/extensions/lark/outbound.py` fails closed on an over-limit or malformed payload, and the channel reports that local failure without re-delivering the persisted answer; one answer carries no idempotency identity, so a retry can duplicate it; structured rendering is not guaranteed |
 | Host modes M0-M1 | The channel's executor selection and its bounded one-segment execution | Selection is covered by PR #4446 and the Turn-side selection by PR #4443; bounded one-segment execution is covered by the Mode B acceptance above. The channel itself now reaches the managed host through the segment transport, so the managed host's own one-segment execution is reachable from the channel; what remains open is that the segment is not a session, so cross-turn host continuity is still not offered |
-| Host modes M2-M3 | Attached-host parity, typed unavailability, and mode-aware projection with no mode inference and no second executor | Not implemented for the channel; an external audience still degrades to `restricted`, and the channel projects neither its mode nor its session status |
+| Host modes M2-M3 | Attached-host parity, typed unavailability, and mode-aware projection with no mode inference and no second executor | Partly shipped: the channel's managed segment transport holds one executor per binding, refuses a second start with the typed `managed_host_chat_segment_in_flight`, and discards an interrupted segment's answer instead of letting it enter visible history. The channel readback also carries the mode-aware projection: it quotes the Session's own `session_mode` and `status`, reads a channel with no Session as `unbound`, and names a mode outside the closed set as `unrecognized` instead of deriving a mode from the executor it resolved. Still not implemented: attached-host parity, and an external audience still degrades to `restricted` |
 
 Two boundaries stay fixed across all five rows. The channel remains an entry point
 and projection of one manager Session: it owns no profile, no permission state, no
