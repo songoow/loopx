@@ -1,0 +1,48 @@
+name: Jev branch validation
+
+on:
+  push:
+    branches: [codex/jev-integrated-pilot]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jev-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-and-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export tracked public source for isolated development
+        run: |
+          git archive --format=tar.gz --output="$RUNNER_TEMP/loopx-source.tar.gz" HEAD
+          git rev-parse HEAD > "$RUNNER_TEMP/source-commit.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jev-branch-source
+          path: |
+            ${{ runner.temp }}/loopx-source.tar.gz
+            ${{ runner.temp }}/source-commit.txt
+          retention-days: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate pilot when present
+        shell: bash
+        run: |
+          if test -d packages/loopx-jev/tests; then
+            python -m pip install 'pytest>=8,<10' 'pyyaml>=6,<7' 'jsonschema>=4.23,<5'
+            PYTHONPATH="$PWD/packages/loopx-jev/src:$PWD" python -m pytest packages/loopx-jev/tests -q
+          else
+            echo 'Bootstrap only: pilot code has not been committed yet.'
+          fi
