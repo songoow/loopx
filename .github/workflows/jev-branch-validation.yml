@@ -13,53 +13,116 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  development-runtime:
+  materialize:
+    if: github.repository == 'songoow/loopx' && github.ref == 'refs/heads/codex/jev-integrated-pilot'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      head: ${{ steps.source.outputs.head }}
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
         with:
-          node-version: '22'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Prepare offline development runtime
+          fetch-depth: 2
+      - name: Materialize verified public source on this branch only
+        id: source
+        shell: bash
         run: |
-          mkdir -p "$RUNNER_TEMP/jev-runtime/bin" "$RUNNER_TEMP/jev-runtime/wheels"
-          cp "$(command -v node)" "$RUNNER_TEMP/jev-runtime/bin/node"
-          node --version > "$RUNNER_TEMP/jev-runtime/node-version.txt"
-          python -m pip download --only-binary=:all: --dest "$RUNNER_TEMP/jev-runtime/wheels" 'mcp==1.28.1' 'pytest>=9,<10' 'pyyaml>=6,<7' 'jsonschema>=4.23,<5'
-          tar -czf "$RUNNER_TEMP/jev-runtime.tar.gz" -C "$RUNNER_TEMP" jev-runtime
-      - uses: actions/upload-artifact@v4
-        with:
-          name: jev-development-runtime
-          path: ${{ runner.temp }}/jev-runtime.tar.gz
-          retention-days: 1
+          python - <<'PY'
+          import hashlib, json, lzma, os, pathlib, subprocess
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          branch = 'codex/jev-integrated-pilot'
+          assert os.environ['GITHUB_REPOSITORY'] == 'songoow/loopx'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/' + branch
+          current = git('rev-parse', 'HEAD')
+          assert git('ls-remote', 'origin', 'refs/heads/' + branch).split()[0] == current
+          parts = sorted(pathlib.Path('.github/jev-pilot-delivery').glob('part-*'))
+          assert len(parts) == 6
+          raw = lzma.decompress(b''.join(p.read_bytes() for p in parts))
+          assert hashlib.sha256(raw).hexdigest() == 'a8d1395f98b2e9ec1643a77bdf01d4a9ff4e00bc91705681ffcb6b931e893ba6'
+          delivery = json.loads(raw)
+          assert git('rev-parse', 'HEAD^') == delivery['base'] == '435e4c9c89755d609eaf9343334bf7050e8365be'
+          core = {'loopx/control_plane/todos/decision_scope.py', 'loopx/control_plane/todos/decision_scope.ts', 'loopx/capabilities/explore/worker_branch_plan.py'}
+          patch_paths = {line.split(' b/', 1)[1] for line in delivery['patch'].splitlines() if line.startswith('diff --git a/')}
+          assert patch_paths == core
+          for name in delivery['files']:
+              p = pathlib.PurePosixPath(name)
+              assert not p.is_absolute() and '..' not in p.parts
+              assert name == 'loopx/control_plane/ranking_context.py' or name.startswith('packages/loopx-jev/')
+              assert not pathlib.Path(name).exists(), name
+          patch = delivery['patch'].encode()
+          subprocess.run(['git', 'apply', '--check', '--whitespace=error-all'], input=patch, check=True)
+          subprocess.run(['git', 'apply', '--whitespace=error-all'], input=patch, check=True)
+          for name, content in delivery['files'].items():
+              p = pathlib.Path(name)
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_bytes(content.encode())
+          assert len(delivery['sha256']) == 25
+          for name, digest in delivery['sha256'].items():
+              assert hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest() == digest, name
+          subprocess.run(['git', 'diff', '--check'], check=True)
+          subprocess.run(['git', 'config', 'user.name', 'songoow'], check=True)
+          subprocess.run(['git', 'config', 'user.email', '22676124+songoow@users.noreply.github.com'], check=True)
+          paths = sorted(delivery['sha256'])
+          runtime = [p for p in paths if p.startswith('loopx/') or '/src/' in p or p.endswith('/pyproject.toml')]
+          tests = [p for p in paths if '/tests/' in p]
+          docs = [p for p in paths if p not in runtime and p not in tests]
+          for group, title in [(runtime, 'feat(jev): add optional scoped Todo and Explore ranking pilot'), (tests, 'test(jev): verify concurrent off shadow assist and real CLI boundaries')]:
+              subprocess.run(['git', 'add', '--', *group], check=True)
+              subprocess.run(['git', 'commit', '-s', '-m', title], check=True)
+          subprocess.run(['git', 'add', '--', *docs], check=True)
+          subprocess.run(['git', 'rm', '-r', '--', '.github/jev-pilot-delivery'], check=True)
+          subprocess.run(['git', 'commit', '-s', '-m', 'docs(jev): document branch pilot operation and bounded validation'], check=True)
+          assert not git('status', '--porcelain')
+          subprocess.run(['git', 'push', 'origin', 'HEAD:refs/heads/' + branch], check=True)
+          head = git('rev-parse', 'HEAD')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('head=' + head + '\n')
+          print('Verified implementation head:', head)
+          PY
   offline-tests:
+    needs: materialize
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        area: [adapter, d7, d8]
+        area: [adapter, d7, d8, typed-regression]
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.materialize.outputs.head }}
+          path: project
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 04ba65ac1a37c94d964adeedf3ff1f125c5ffe12
+          path: baseline
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      - name: Install validation dependencies
-        run: python -m pip install 'pytest>=9,<10' 'pyyaml>=6,<7' 'jsonschema>=4.23,<5' 'mcp==1.28.1'
-      - name: Test selected area
+          node-version: '22.23.2'
+      - name: Install isolated test dependencies
+        run: |
+          python -m pip install 'pytest==9.1.1' 'pyyaml>=6,<7' 'jsonschema>=4.23,<5' 'mcp==1.28.1'
+          python -m pip install --no-deps -e project/packages/loopx-jev
+      - name: Test original owners and optional pilot
+        working-directory: project
         env:
           JEV_TEST_AREA: ${{ matrix.area }}
+          JEV_BASE_DIR: ${{ github.workspace }}/baseline
+        shell: bash
         run: |
-          if test -f packages/loopx-jev/tests/test_${JEV_TEST_AREA}.py; then
-            PYTHONPATH="$PWD/packages/loopx-jev/src:$PWD" python -m pytest packages/loopx-jev/tests/test_${JEV_TEST_AREA}.py -q
-          else
-            echo 'Bootstrap only: implementation test area is not committed yet.'
-          fi
+          export PYTHONPATH="$PWD/packages/loopx-jev/src:$PWD:$PWD/tests:$PWD/tests/control_plane"
+          case "$JEV_TEST_AREA" in
+            adapter) python -m pytest packages/loopx-jev/tests/test_adapter.py -q ;;
+            d7) python -m pytest packages/loopx-jev/tests/test_d7.py tests/control_plane/test_scoped_gate_fallback_cli.py tests/control_plane/test_todo_decision_scope_runtime_boundary.py tests/control_plane/test_todo_decision_scope_consistency.py -q ;;
+            d8) python -m pytest packages/loopx-jev/tests/test_d8.py tests/test_explore_router_acceptance.py tests/test_explore_resource_portfolio.py tests/test_explore_monitor_lane_budget.py tests/test_explore_worker_topic_affinity.py -q ;;
+            typed-regression) node --no-warnings --experimental-sqlite --experimental-strip-types --test tests/control_plane_ts/scoped_gate_fallback.test.ts tests/control_plane_ts/decision_scope.test.ts tests/control_plane_ts/turn_settlement.test.ts ;;
+          esac
+          git diff --check
