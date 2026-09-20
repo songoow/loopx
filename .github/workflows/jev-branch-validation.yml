@@ -13,36 +13,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  source-and-validation:
+  development-runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prepare offline development runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/jev-runtime/bin" "$RUNNER_TEMP/jev-runtime/wheels"
+          cp "$(command -v node)" "$RUNNER_TEMP/jev-runtime/bin/node"
+          node --version > "$RUNNER_TEMP/jev-runtime/node-version.txt"
+          python -m pip download --only-binary=:all: --dest "$RUNNER_TEMP/jev-runtime/wheels" 'mcp==1.28.1' 'pytest>=9,<10' 'pyyaml>=6,<7' 'jsonschema>=4.23,<5'
+          tar -czf "$RUNNER_TEMP/jev-runtime.tar.gz" -C "$RUNNER_TEMP" jev-runtime
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jev-development-runtime
+          path: ${{ runner.temp }}/jev-runtime.tar.gz
+          retention-days: 1
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        area: [adapter, d7, d8]
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Export tracked public source for isolated development
-        run: |
-          git archive --format=tar.gz --output="$RUNNER_TEMP/loopx-source.tar.gz" HEAD
-          git rev-parse HEAD > "$RUNNER_TEMP/source-commit.txt"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: jev-branch-source
-          path: |
-            ${{ runner.temp }}/loopx-source.tar.gz
-            ${{ runner.temp }}/source-commit.txt
-          retention-days: 1
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate pilot when present
-        shell: bash
+      - name: Install validation dependencies
+        run: python -m pip install 'pytest>=9,<10' 'pyyaml>=6,<7' 'jsonschema>=4.23,<5' 'mcp==1.28.1'
+      - name: Test selected area
+        env:
+          JEV_TEST_AREA: ${{ matrix.area }}
         run: |
-          if test -d packages/loopx-jev/tests; then
-            python -m pip install 'pytest>=8,<10' 'pyyaml>=6,<7' 'jsonschema>=4.23,<5'
-            PYTHONPATH="$PWD/packages/loopx-jev/src:$PWD" python -m pytest packages/loopx-jev/tests -q
+          if test -f packages/loopx-jev/tests/test_${JEV_TEST_AREA}.py; then
+            PYTHONPATH="$PWD/packages/loopx-jev/src:$PWD" python -m pytest packages/loopx-jev/tests/test_${JEV_TEST_AREA}.py -q
           else
-            echo 'Bootstrap only: pilot code has not been committed yet.'
+            echo 'Bootstrap only: implementation test area is not committed yet.'
           fi
