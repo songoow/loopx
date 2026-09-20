@@ -48,13 +48,46 @@ baseline is absent. CI checks out that baseline independently; a skip is not a
 passing differential. Current counts/status belong in the exact-head CI output,
 not an evergreen claim that later revisions passed.
 
+## Live provider and bounded native-host checks
+
+Two synthetic D7/D8 requests completed against pinned `jev-1.13.0`, then two
+more completed after the HTTP response-framing fix. Each pair used 1,578 input
+and 106 output tokens in total. The real TS selector and Explore planner
+consumed the preferences. Two further live calls exercised the actual capture/run
+CLI against isolated File authority: D7 quota fallback and D8 worker-branch
+planning both consumed preferences, while authority readback stayed unchanged.
+Those calls used 1,653 input and 106 output tokens in total. Provider cost in
+currency was not returned and remains
+unknown. The earlier DNS failure was an environment observation, not a permanent
+provider limitation. No credentials or raw trajectories are part of this package.
+
+Separate off/assist projects started with identical source files. Native Codex
+CLI sessions (`gpt-6-astra`, medium reasoning) received the same legal tasks and
+the respective actual owner recommendation, with permission to choose another
+legal item. All four sessions completed the useful work; the off sessions
+overrode the baseline recommendations. Independent unittest runs, literal
+artifact checks, and normalization-removal mutation checks passed for all four.
+Thus these examples establish native-host execution, **not incremental Jev
+quality benefit**. One run per arm does not establish a timing benefit.
+
+The native sessions used replayed recommendations from the completed live
+assessment. They did not install a native Goal hook or exercise an automatically
+connected, continuously refreshed Goal loop. Claude sessions could not start
+model work because the API rejected OAuth authentication; the Claude comparison
+remains untested. A CLI's logged-in status did not predict successful API access.
+
+The local rerun also exposed an environment constraint: Node 25.2.1's bundled
+SQLite failed qualification. Merely switching PATH retained an older managed
+Effect process. Node 22.23.2 with a fresh TMPDIR passed the File/SQLite cases
+without restarting any unrelated runtime. Keep this isolation when reproducing
+checks locally; do not lower SQLite qualification to make tests pass.
+
 ## Not established
 
-No live Jev response/quality measurement, actual Codex/Claude coding session,
-long-horizon native Goal, PostgreSQL qualification, general model improvement,
-full-suite certification or automatic upstream adoption is claimed. A provided
-API key was not committed or installed as a repository secret. The local network
-could not resolve the TypeSafe host, so fixture replies are never labeled live.
+No statistically supported quality or cost improvement, completed Claude
+comparison, long-horizon native Goal, PostgreSQL qualification, full-suite
+certification or automatic upstream adoption is claimed. Broader task coverage,
+repeated randomized trials and host usage accounting are still required.
 
 The synthetic subprocess is not a coding model. The real canonical-completion
 checks are not a claim of exercising every Turn settlement phase. D8 remains a

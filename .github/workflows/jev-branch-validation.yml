@@ -3,6 +3,8 @@ name: Jev branch validation
 on:
   push:
     branches: [codex/jev-integrated-pilot]
+  pull_request:
+    branches: [codex/jev-integrated-pilot]
   workflow_dispatch:
 
 permissions:
@@ -14,7 +16,7 @@ concurrency:
 
 jobs:
   offline-tests:
-    if: github.repository == 'songoow/loopx' && github.ref == 'refs/heads/codex/jev-integrated-pilot'
+    if: github.repository == 'songoow/loopx' && (github.ref == 'refs/heads/codex/jev-integrated-pilot' || github.base_ref == 'codex/jev-integrated-pilot')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -24,6 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: project
           persist-credentials: false
       - uses: actions/checkout@v4
