@@ -84,16 +84,49 @@ output types; it is excluded from formal outcome/timing totals. Fresh formal
 sessions isolated logs and repositories, froze the clarified contracts, and
 reassessed the two changed goal bases rather than reusing stale advice.
 
-Four additional D7/D8 live cases used the actual selector/planner. Preferences
-selected the useful alternative under the original objective, and preserved the
-baseline when the changed objective made it preferable. All four matched the
-predeclared choices; this does not establish whole-system scheduling benefit.
+The subsequent D7/D8 study added 20 live judgments: five predeclared cases per
+direction, each called twice using independent ledgers. Helpful reordering,
+already-correct baseline, opaque evidence, equivalent candidates and unsupported
+author praise all matched the expected outcome (20/20); four opaque trials
+abstained. The 0.6 threshold and no-retry policy remained unchanged. This is
+constructed-case agreement, not production accuracy or a separate bounded
+Codex judgment comparison.
 
-Expanded-study provider calls total 54: 42 bounded comparisons, four ranking
-cases, six initial work assessments and two reassessments after contract
-clarification. No automatic retries or cached replies were counted as fresh
-trials. Earlier D7/D8 qualification calls remain separate historical evidence.
-Claude is excluded from the current scope.
+Four D7/D8 projects then ran off/assist with the actual owner's selection, identical
+initial files, isolated repositories and external logs. Both arms passed 4/4
+independent outcome checks; all eight broken-copy checks failed as intended.
+The Agent could override the selection and did so when the baseline was poor.
+Jev saw the goal and candidate summaries, not these workspaces' complete source.
+There was **no incremental successful outcome**, and latency did not consistently
+improve. Requested Codex model/reasoning stayed `gpt-6-astra` / medium.
+
+| Direction / case | Off host seconds | Assist host seconds | Prior Jev assessment seconds |
+| --- | ---: | ---: | ---: |
+| D7 helpful reorder | 36.642 | 39.468 | 0.841 |
+| D7 baseline correct | 32.416 | 58.911 | 0.821 |
+| D8 helpful reorder | 30.933 | 28.052 | 0.778 |
+| D8 baseline correct | 27.216 | 24.751 | 0.756 |
+
+Each arm ran once per task, with two concurrent host processes. These are
+observations, not speed estimates. Advice was measured beforehand; adding its
+latency to host time is not a measured continuous end-to-end transaction.
+The 20 D7/D8 assessment calls had median/P95 764.086/847.003 ms; owner capture
+and consumption medians were 14.862/15.029 ms. Capture's maximum was 811.687 ms,
+so warm medians should not be presented as startup cost. Input/output tokens
+were 15,798/1,084; currency cost remains unknown.
+
+The earlier expanded study made 54 provider calls; this continuation adds 20.
+No automatic retries or cached replies count as fresh trials. Earlier initial
+D7/D8 qualification remains separate historical evidence. Claude is excluded.
+
+Regression coverage now includes both actual owners under successful preference,
+baseline preference, ties, abstention, low confidence, timeout and revocation;
+all 872 baseline permutations across 2–6 candidates; interleaved policy cohorts;
+and no-key/no-request behavior when no legal pair exists. Cached abstentions
+now recheck freshness and report current replay timing rather than recycling
+old assessment timing. Provider timing remains explicitly historical on replay.
+The D7 request dictionary is explicitly typed, and the isolated subprocess test
+sets source paths without requiring global installation of the optional package.
 
 ## Timing and reproduction
 
