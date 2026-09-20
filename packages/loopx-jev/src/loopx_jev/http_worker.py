@@ -31,7 +31,13 @@ def main():
         if len(payload) > limit:
             result = {"error": "response_too_large", "dispatch": "response_received"}
         else:
-            result = {"response": json.loads(payload), "dispatch": "response_received"}
+            # Check framing without normalizing the provider bytes: converting
+            # to a dict here would erase duplicate keys before strict_json in
+            # the parent can reject an ambiguous answer. Keep the bounded body
+            # inside the private pipe, never in diagnostics or persisted logs.
+            json.loads(payload)
+            sys.stdout.buffer.write(b'{"dispatch":"response_received","response":' + payload + b'}')
+            return
     except urllib.error.HTTPError as exc:
         # Do not log remote error content, which may reflect submitted inputs.
         result = {"error": "http_" + str(exc.code), "dispatch": "response_received"}

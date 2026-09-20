@@ -280,3 +280,40 @@ def test_complete_abstention_is_not_a_transport_failure(tmp_path):
     assert r['usage']=={'input_tokens':10,'output_tokens':0}
     r2=assess_one(snap(),BASIS,config(),ledger,lambda:True,lambda *args:pytest.fail('no repeat'),lambda:'fixture')
     assert r2['status']=='abstained' and r2['replayed']
+
+
+@pytest.mark.parametrize('payload,accepted', [
+    (b'{"model":"v1","answers":{}}', True),
+    (b'{"model":"v1","model":"v2","answers":{}}', False),
+    (b'{"answers":{"pair_0":{"choice":"left","choice":"right"}}}', False),
+    (b'{"usage":{"input_tokens":NaN}}', False),
+])
+def test_http_worker_preserves_ambiguous_provider_bytes_for_strict_validation(monkeypatch, payload, accepted):
+    import io
+    from loopx_jev import http_worker, transport
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def read(self, limit): return payload[:limit]
+    class Opener:
+        def open(self, *args, **kwargs): return Response()
+    monkeypatch.setattr(http_worker.urllib.request, 'build_opener', lambda *args: Opener())
+    class Child:
+        returncode = 0
+        def communicate(self, envelope, timeout):
+            source = io.TextIOWrapper(io.BytesIO(envelope))
+            target = io.TextIOWrapper(io.BytesIO())
+            with monkeypatch.context() as local:
+                local.setattr(http_worker.sys, 'stdin', source)
+                local.setattr(http_worker.sys, 'stdout', target)
+                http_worker.main()
+                target.flush()
+                output = target.buffer.getvalue()
+            return output, None
+    monkeypatch.setattr(transport.subprocess, 'Popen', lambda *args, **kwargs: Child())
+    if accepted:
+        result = transport.send({'state': {}, 'questions': {}}, config(), 'fixture')
+        assert result['response'] == {'model': 'v1', 'answers': {}}
+    else:
+        with pytest.raises(TransportFailure, match='invalid_transport_response'):
+            transport.send({'state': {}, 'questions': {}}, config(), 'fixture')
