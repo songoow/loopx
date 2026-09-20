@@ -116,3 +116,9 @@ selector/planner 的选择，再把同一组合法任务和该选择交给实际
 复测 SQLite 时必须隔离临时运行时目录；只切换 PATH 可能继续连接旧 Node
 启动的 Effect 服务。可先创建新的临时目录，再为该次 pytest 设置 TMPDIR，
 不要为实验重启正在服务其他 Goal 的运行时。
+
+## D1–D6 有限辅助判断入口
+
+可选包新增 `loopx-jev assess`，提供六类显式材料判断，不安装原生 hook，也不替代
+上游 owner。参见[可运行示例与耗时边界](examples/advisory/README.zh-CN.md)，其中说明
+输入、开关、证据缺失、调用预算和各阶段耗时的准确含义。

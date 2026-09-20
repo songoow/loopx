@@ -218,3 +218,10 @@ authentication failures remain incomplete host comparisons.
 For SQLite retesting, create a fresh temporary directory and set TMPDIR for that
 test process. Changing PATH alone can reconnect to an Effect service started
 with the old Node. Do not restart a runtime serving unrelated Goals for a study.
+
+## Bounded D1–D6 advisory command
+
+`loopx-jev assess` now provides six explicit artifact-based assessments in the
+optional package. It does not install native hooks or replace upstream owners.
+See the [runnable examples and timing contract](examples/advisory/README.md) for
+input schemas, off/shadow/assist behavior, evidence limits and stage durations.

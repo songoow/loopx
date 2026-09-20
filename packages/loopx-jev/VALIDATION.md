@@ -1,40 +1,119 @@
 # Validation and claim boundaries
 
-Baseline: upstream `04ba65ac1a37c94d964adeedf3ff1f125c5ffe12`.
-The source was read as a complete tracked archive; local work uses an isolated
-worktree. No active user Goal, lease, credential store or worktree was modified.
+The pilot remains based on upstream `04ba65ac1a37c94d964adeedf3ff1f125c5ffe12`
+and the personal integrated branch. This is not upstream adoption or permission
+to mutate active Goals. [中文](VALIDATION.zh-CN.md)
 
-## Executed locally
+## Implemented and exercised
 
-Python 3.13.5, Node 22.23.2, pytest 9.1.1. The following groups run in separate
-processes; tests themselves include bounded concurrent threads/processes.
+D1–D6 have an explicit `loopx-jev assess` entrypoint over caller-declared,
+revisioned inputs and host-read local evidence. This is a usable bounded advisory
+caller, not automatic integration into every upstream owner. D7/D8 retain the
+actual scoped fallback selector and Explore planner capture/run entrypoints.
+Default off avoids optional input, ledger, credential and transport access.
 
-- Adapter: strict config/JSON, whole-request deadline, key isolation, no retries,
-  candidate coverage/cohorts, consistent ties, cycles, abstention, changed evidence,
-  budget sharing and expired-detail tombstones.
-- D7: the real original TypeScript selector, the full quota CLI on Markdown,
-  File and SQLite, disabled/shadow/assist behavior, current-source changes,
-  concurrent config disable, optional transport failures, and actual independent
-  validator execution before canonical Todo completion on File/SQLite.
-- D8: the real builder and full Explore CLI on File/SQLite, fixed profiles,
-  unchanged candidate metrics, strict membership, disabled behavior, preservation
-  of resource/admission boundaries and original dry-run baseline identity.
-- Feature-off differential: complete planner result equality against a separate
-  pinned original source across generic/adaptive-resilient/moe-router profiles.
-- Existing regressions: scoped fallback CLI, decision-scope runtime/consistency,
-  Explore router/resources/monitors/affinity, and TypeScript settlement.
+All directions preserve existing permissions, ownership, acceptance and
+settlement. D1 separates goal relation from evidence increment; missing history
+forces unknown increment. D3 refuses to infer support without evidence refs.
+D4 retains every candidate and required source. D5 suggests discovered skills
+without installation; D6 compares supplied alternatives without committing plans.
 
-The capture/consume integration found and fixed one concrete issue during
-implementation: read-model `projection.generated_at` changes on refresh and is
-not a decision fact. Only that display timestamp is excluded. A regression test
-separately proves real frontier changes invalidate the hint.
+Focused validation covers configuration, strict JSON, duplicate response fields,
+partial coverage/abstention, malformed membership, missing evidence, exact-head
+claims, stale input, revoked cached advice, transport failures, durable attempt
+budgets, source readback, example schemas and feature-off isolation. Deadlines
+include parent preparation and worker spawn; malformed responses cannot become
+preferences. Timing records distinguish sequential phases from inclusive totals.
 
-## Run
+The continuation was tested with Python 3.11.7, Node 22.23.2 and pytest 9.1.1.
+Original qualification also used Python 3.13.5; CI uses Python 3.13. Exact-head
+CI, rather than these version notes, determines whether a later revision passed.
+File/SQLite tests include actual CLI calls and canonical completion; a separate
+pinned source supplies nine complete feature-off planner differentials. Existing
+quota, decision-scope, Explore and TypeScript settlement regressions remain.
 
-From the branch root with its development environment:
+Node 25.2.1's SQLite was rejected during initial local qualification. Merely
+changing PATH reused an old Effect service. A fresh TMPDIR and qualified Node
+passed without restarting unrelated services or weakening qualification.
+
+## Bounded live comparisons
+
+The expanded study used 21 predeclared synthetic cases with two independent
+calls per case per model: 42 Jev calls and 42 Codex bounded no-tool judgments.
+Task evidence and finite question meanings matched; API wrappers, system context,
+output formats and harness overhead did not. Repeated calls are not independent
+tasks, and constructed-case agreement is not production accuracy.
+
+| Direction | Calls per model | Jev effective exact-label agreement | Codex agreement |
+| --- | ---: | ---: | ---: |
+| D1 progress | 12 | 9/12 | 12/12 |
+| D2 owner reuse | 6 | 4/6 | 6/6 |
+| D3 claims | 6 | 6/6 | 4/6 |
+| D4 material | 6 | 6/6 | 6/6 |
+| D5 skills | 6 | 6/6 | 6/6 |
+| D6 replanning | 6 | 6/6 | 6/6 |
+
+Jev's effective agreement was 37/42; raw highest-probability labels agreed on
+38/42. The original 0.6 threshold was not lowered to improve results. Both drift
+trials abstained; one changed-goal trial left increment unknown. Two owner cases
+classified a display cache as related-but-distinct instead of unrelated, without
+recommending unsafe reuse. Codex classified two overbroad claims as insufficient
+rather than contradicted; neither classification endorsed those claims. Unknown
+answers can be correct, and these disagreements do not all represent consequential
+errors. Determinate coverage was 61/76 items for Jev and 64/76 for Codex.
+
+Pinned `jev-1.13.0` was verified in every successful provider response. Codex used
+requested `gpt-6-astra` with medium reasoning; its fixed resolved model version
+was not exposed by the CLI. Currency cost remains unknown.
+
+## Native working-agent outcomes
+
+Six independent synthetic work projects were each run off/assist from identical
+initial files. All 12 native Codex sessions produced artifacts that passed
+independent contract checks. All 12 validators rejected deliberately broken
+artifacts in disposable copies. Helper/experiment execution and preservation of
+read-only evidence were separately checked. Both arms completed 6/6 cases:
+**no incremental successful outcome was observed**. Some assisted sessions were
+faster and others slower; one formal run per arm cannot establish efficiency.
+
+Assist consumed a real assessment of that exact initial workspace, with the
+working Agent free to investigate and reject advice. It was an explicit study
+handoff, not an installed native Goal hook or continuous refreshed controller.
+The initial exploratory work batch had visible host logs and underspecified
+output types; it is excluded from formal outcome/timing totals. Fresh formal
+sessions isolated logs and repositories, froze the clarified contracts, and
+reassessed the two changed goal bases rather than reusing stale advice.
+
+Four additional D7/D8 live cases used the actual selector/planner. Preferences
+selected the useful alternative under the original objective, and preserved the
+baseline when the changed objective made it preferable. All four matched the
+predeclared choices; this does not establish whole-system scheduling benefit.
+
+Expanded-study provider calls total 54: 42 bounded comparisons, four ranking
+cases, six initial work assessments and two reassessments after contract
+clarification. No automatic retries or cached replies were counted as fresh
+trials. Earlier D7/D8 qualification calls remain separate historical evidence.
+Claude is excluded from the current scope.
+
+## Timing and reproduction
+
+Observed complete bounded-client medians/P95 were 1952.985/3531.167 ms for Jev
+and 10324.081/17424.028 ms for Codex. P95 uses nearest-rank. Jev request-to-headers
+median was 1205.551 ms; this includes DNS/TLS, network, queueing and execution,
+**not server-only inference time**. System/harness input-token overhead differs
+substantially; these numbers cannot establish pure model speed or cost advantage.
+
+[Examples and timing contract](examples/advisory/README.md) document nanosecond
+clock representation, nested phases, replay attribution, report-write timing,
+explicit activation and disable behavior. Host work and independent validation
+are separate measurements. Human material-assembly time remains unmeasured.
+Public examples and durable tests ship here; raw study drivers, trajectories and
+per-call records remain outside the tracked product and CI surface.
+
+From an installed checkout environment, with a fresh temporary runtime directory
+and the qualified Node on PATH:
 
 ```bash
-export PYTHONPATH="$PWD/packages/loopx-jev/src:$PWD:$PWD/tests:$PWD/tests/control_plane"
 export JEV_BASE_DIR=/path/to/a/separate/pinned/baseline-checkout
 python -m pytest packages/loopx-jev/tests -q
 node --no-warnings --experimental-sqlite --experimental-strip-types --test \
@@ -43,58 +122,6 @@ node --no-warnings --experimental-sqlite --experimental-strip-types --test \
   tests/control_plane_ts/turn_settlement.test.ts
 ```
 
-The nine independent-source differential cases explicitly skip if the separate
-baseline is absent. CI checks out that baseline independently; a skip is not a
-passing differential. Current counts/status belong in the exact-head CI output,
-not an evergreen claim that later revisions passed.
-
-## Live provider and bounded native-host checks
-
-Two synthetic D7/D8 requests completed against pinned `jev-1.13.0`, then two
-more completed after the HTTP response-framing fix. Each pair used 1,578 input
-and 106 output tokens in total. The real TS selector and Explore planner
-consumed the preferences. Two further live calls exercised the actual capture/run
-CLI against isolated File authority: D7 quota fallback and D8 worker-branch
-planning both consumed preferences, while authority readback stayed unchanged.
-Those calls used 1,653 input and 106 output tokens in total. Provider cost in
-currency was not returned and remains
-unknown. The earlier DNS failure was an environment observation, not a permanent
-provider limitation. No credentials or raw trajectories are part of this package.
-
-Separate off/assist projects started with identical source files. Native Codex
-CLI sessions (`gpt-6-astra`, medium reasoning) received the same legal tasks and
-the respective actual owner recommendation, with permission to choose another
-legal item. All four sessions completed the useful work; the off sessions
-overrode the baseline recommendations. Independent unittest runs, literal
-artifact checks, and normalization-removal mutation checks passed for all four.
-Thus these examples establish native-host execution, **not incremental Jev
-quality benefit**. One run per arm does not establish a timing benefit.
-
-The native sessions used replayed recommendations from the completed live
-assessment. They did not install a native Goal hook or exercise an automatically
-connected, continuously refreshed Goal loop. Claude sessions could not start
-model work because the API rejected OAuth authentication; the Claude comparison
-remains untested. A CLI's logged-in status did not predict successful API access.
-
-The local rerun also exposed an environment constraint: Node 25.2.1's bundled
-SQLite failed qualification. Merely switching PATH retained an older managed
-Effect process. Node 22.23.2 with a fresh TMPDIR passed the File/SQLite cases
-without restarting any unrelated runtime. Keep this isolation when reproducing
-checks locally; do not lower SQLite qualification to make tests pass.
-
-## Not established
-
-No statistically supported quality or cost improvement, completed Claude
-comparison, long-horizon native Goal, PostgreSQL qualification, full-suite
-certification or automatic upstream adoption is claimed. Broader task coverage,
-repeated randomized trials and host usage accounting are still required.
-
-The synthetic subprocess is not a coding model. The real canonical-completion
-checks are not a claim of exercising every Turn settlement phase. D8 remains a
-read-only plan; protected worker execution still follows its existing owner.
-
-A meaningful live comparison uses independent initial state for off and assist,
-the same branch/code/model/budget, unchanged evaluators, and records actual
-selection plus later outcomes. Include unchanged selections, bad preferences,
-necessary prerequisites, misleading descriptions, ties and failures. A model's
-probability is not an outcome score. Report unknown cost as unknown.
+Missing baseline causes explicit differential skips, not passing parity. No
+statistically supported quality/cost gain, PostgreSQL qualification, full-suite
+certification, long-horizon recovery or automatic upstream adoption is claimed.
