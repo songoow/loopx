@@ -94,7 +94,7 @@ export function fallbackGateRelation(gate: JsonObject, item: JsonObject): JsonOb
 /** Select only from already evaluated lanes. Never re-evaluate waits against a
  * compact list or refill an authoritative empty capability result from backlog.
  * Return source positions, leaving display compaction and wording to adapters. */
-export function selectScopedGateFallback(request: JsonObject): JsonObject | null {
+function scopedGateFallback(request: JsonObject, inspect: boolean): JsonObject | null {
   const agent = optionalNonEmptyString(request.agent_id, "agent_id");
   const debt = requireBoolean(request.monitor_debt_backoff_active, "monitor_debt_backoff_active");
   const allowUnrelated = requireBoolean(request.allow_unrelated_gate, "allow_unrelated_gate");
@@ -120,6 +120,7 @@ export function selectScopedGateFallback(request: JsonObject): JsonObject | null
     (debt ? Number(a.item.task_class !== "advancement_task") - Number(b.item.task_class !== "advancement_task") : 0) ||
     a.persisted - b.persisted || a.index - b.index);
   const blocked: JsonObject[] = [];
+  const eligible: typeof candidates = [];
   let selected: typeof candidates[number] | undefined;
   let blockingGate: typeof gates[number] | undefined;
   for (const candidate of candidates) {
@@ -128,15 +129,55 @@ export function selectScopedGateFallback(request: JsonObject): JsonObject | null
     if (match) {
       blockingGate ??= match;
       blocked.push({candidate_index: candidate.index, gate_index: match.index, relation: match.relation});
-    } else selected ??= candidate;
+    } else {
+      eligible.push(candidate);
+      selected ??= candidate;
+    }
   }
   if (!selected || (!blockingGate && !allowUnrelated)) return null;
+  const preference = request.candidate_preference;
+  if (inspect || preference !== undefined) {
+    // Conservative policy equivalence: never exchange monitor/recovery states,
+    // actor bindings or priority. Eligibility was evaluated above, not by a model.
+    const cohortKey = (row: typeof candidates[number]) => JSON.stringify([
+      row.priority, row.item.task_class ?? null, row.item.status ?? "open",
+      row.item.claimed_by ?? null, row.item.bound_agent ?? null,
+      row.item.resume_ready === true,
+      debt && row.item.task_class !== "advancement_task",
+    ]);
+    const cohort = eligible.filter(row => cohortKey(row) === cohortKey(selected!));
+    const ids = cohort.map(row => text(row.item.todo_id));
+    const completeIds = ids.every(id => id !== null) && new Set(ids).size === ids.length;
+    if (inspect) return {
+      schema_version: "scoped_gate_fallback_candidates_v0",
+      candidate_indices: completeIds ? cohort.map(row => row.index) : [],
+      candidate_ids: completeIds ? ids : [],
+      selected_index: selected.index,
+      eligibility_scope: "already_evaluated_scoped_fallback_lanes_only",
+    };
+    if (preference !== undefined) {
+      if (!completeIds || !Array.isArray(preference) || preference.length !== ids.length ||
+          preference.some(id => typeof id !== "string" || !ids.includes(id)) ||
+          new Set(preference).size !== preference.length) {
+        throw new TypeError("fallback preference must exactly cover the current policy cohort");
+      }
+      selected = cohort.find(row => row.item.todo_id === preference[0])!;
+    }
+  }
   const surface = blockingGate ?? gates[0]!;
   return {schema_version: "scoped_gate_fallback_selection_v0",
     selected_index: selected.index, gate_index: surface.index, blocked: blocked.slice(0, 3), blocked_count: blocked.length,
     has_blocking_gate: blockingGate !== undefined,
     selected_relation: fallbackGateRelation(surface.gate, selected.item),
     deferred_replan: selected.item.status === "deferred" && selected.item.resume_ready === true};
+}
+
+export function selectScopedGateFallback(request: JsonObject): JsonObject | null {
+  return scopedGateFallback(request, false);
+}
+
+export function inspectScopedGateFallback(request: JsonObject): JsonObject | null {
+  return scopedGateFallback(request, true);
 }
 
 function open(items: JsonObject[]): JsonObject[] {
@@ -213,6 +254,7 @@ export function evaluateDecisionScope(value: unknown): JsonObject {
   let result: JsonObject | boolean | null | (JsonObject | null)[][];
   switch (request.operation) {
     case "fallback": result = selectScopedGateFallback(request); break;
+    case "fallback_candidates": result = inspectScopedGateFallback(request); break;
     case "consistency": result = decisionScopeConsistency(request); break;
     case "standing": result = scopeStandingAuthority(request.authority, optionalNonEmptyString(request.agent_id, "agent_id")); break;
     case "covers": result = decisionScopeCovers(request.gate_scope, request.required_scope); break;

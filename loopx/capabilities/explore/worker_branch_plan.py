@@ -914,6 +914,39 @@ def build_explore_worker_branch_plan(
         bundle_straggler_factor=float(profile.get("bundle_straggler_factor") or 0.0),
         router_state=router_state if router_used else None,
     )
+    baseline_branch_candidates = branch_candidates
+    from ...control_plane.ranking_context import ranking_active, preference_for, record_selection
+
+    if ranking_active() and branch_candidates:
+        # The domain owns cohorts. Preferences never replace measured/heuristic
+        # admission quantities, bundle membership, profile, resources or history.
+        groups: dict[tuple, list[str]] = {}
+        for branch in branch_candidates:
+            group = (tuple(todo_projection_sort_key(dict(item))[0]
+                           for item in branch["todo_bundle"]),
+                     tuple(str(item.get("task_class") or "") for item in branch["todo_bundle"]),
+                     str(branch.get("resource_lane") or ""))
+            groups.setdefault(group, []).append(str(branch["branch_id"]))
+        by_id = {str(branch["branch_id"]): branch for branch in branch_candidates}
+        snapshot = {
+            "scenario": "explore_order", "owner": "explore.worker_branch_plan",
+            "source": {"goal_id": goal_id, "agent_id": normalized_agent,
+                       "todos": list(todos),
+                # Generation time is a read-model timestamp, not a decision fact.
+                "projection": {k: v for k, v in (projection or {}).items() if k != "generated_at"}, "gate": gate,
+                       "profile": profile, "router_state": router_state,
+                       "load_profile": load_profile, "effective_load": effective_load,
+                       "resource_portfolio": resource_portfolio,
+                       "width": normalized_width, "max_todos": normalized_max_todos,
+                       "fill_policy": normalized_fill_policy, "floor": normalized_marginal_floor,
+                       "allow_unscoped_parallel": allow_unscoped_parallel},
+            "baseline_order": list(by_id), "cohorts": list(groups.values()),
+            "cards": [{"id": str(branch["branch_id"]), "branch": branch}
+                      for branch in branch_candidates],
+        }
+        order = preference_for(snapshot)
+        if order is not None:
+            branch_candidates = [by_id[candidate] for candidate in order]
     excluded_monitor_todo_count = sum(
         item.get("selection_status") == "excluded_non_exploration_lane"
         for item in blocked_todos
@@ -1105,7 +1138,7 @@ def build_explore_worker_branch_plan(
             selected = valid_selected
             break
 
-    baseline = _baseline_worker_lanes(branch_candidates, width=normalized_width)
+    baseline = _baseline_worker_lanes(baseline_branch_candidates, width=normalized_width)
     treatment_expected = round(
         sum(float(branch.get("expected_evidence_units") or 0.0) for branch in selected),
         3,
@@ -1126,6 +1159,8 @@ def build_explore_worker_branch_plan(
         )
         for branch in selected
     ]
+    if ranking_active():
+        record_selection("explore_order", [str(branch["branch_id"]) for branch in selected])
     return {
         "ok": True,
         "schema_version": WORKER_BRANCH_PLAN_SCHEMA_VERSION,

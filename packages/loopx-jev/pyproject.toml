@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "loopx-jev-pilot"
+version = "0.1.0"
+description = "Explicit, default-off Jev selection experiment for a pinned LoopX branch"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+loopx-jev = "loopx_jev.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
