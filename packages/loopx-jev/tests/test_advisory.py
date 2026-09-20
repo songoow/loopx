@@ -1,5 +1,4 @@
 """Durable finite-advice boundaries; injected answers are not model-quality evidence."""
-from dataclasses import replace
 import copy
 import json
 
@@ -46,9 +45,12 @@ def response(request, choices=None):
 
 @pytest.mark.parametrize('direction', list(Direction))
 def test_real_assessment_engine_preserves_authority_and_no_second_dispatch(tmp_path, direction):
-    snapshot = packet(direction); before = copy.deepcopy(snapshot)
+    snapshot = packet(direction)
+    before = copy.deepcopy(snapshot)
     config = Config(mode='assist', scenarios=(direction,), model='fixture-v1', allow_egress=True)
-    initialize_run(tmp_path/'run', 1); store = RunStore(tmp_path/'run'); calls = []
+    initialize_run(tmp_path/'run', 1)
+    store = RunStore(tmp_path/'run')
+    calls = []
     def transport(request, config, key):
         calls.append(request)
         return {'response': response(request)}
@@ -62,7 +64,8 @@ def test_real_assessment_engine_preserves_authority_and_no_second_dispatch(tmp_p
 
 
 def test_progress_missing_history_and_wait_are_not_drift():
-    s = packet('progress_review'); s['facts'].update(history_available=False, work_state='waiting')
+    s = packet('progress_review')
+    s['facts'].update(history_available=False, work_state='waiting')
     request, domains = build_request(s, BASIS, 'v1')
     actual = decode_assessment(response(request, ['necessary_prerequisite', 'new_evidence']), s, domains, 'v1')
     assert actual['judgments'] == {'relation': 'necessary_prerequisite', 'increment': 'unknown'}
@@ -72,17 +75,20 @@ def test_progress_missing_history_and_wait_are_not_drift():
 
 
 def test_claims_without_evidence_are_unknown_even_if_model_says_supported():
-    s = packet('claim_evidence');s['candidates'][0]['evidence_refs'] = []
+    s = packet('claim_evidence')
+    s['candidates'][0]['evidence_refs'] = []
     request, domains = build_request(s, BASIS, 'v1')
     result = decode_assessment(response(request), s, domains, 'v1')
     assert result['by_candidate']['a'] == 'insufficient_evidence'
     assert result['coverage'] == {'decided': 1, 'total': 2}
     s['facts']['head_revision'] = 'different-head'
-    with pytest.raises(ValueError, match='claim_head_mismatch'):validate_input(s)
+    with pytest.raises(ValueError, match='claim_head_mismatch'):
+        validate_input(s)
 
 
 def test_material_order_keeps_mandatory_and_every_candidate():
-    s = packet('material_order'); request, domains = build_request(s, BASIS, 'v1')
+    s = packet('material_order')
+    request, domains = build_request(s, BASIS, 'v1')
     result = decode_assessment(response(request, ['useful', 'not_useful']), s, domains, 'v1')
     assert result['order'] == ['b', 'a'] and result['required_ids'] == ['b']
     assert set(result['order']) == {c['id'] for c in s['candidates']}
@@ -94,7 +100,8 @@ def test_material_order_keeps_mandatory_and_every_candidate():
     ('replan_comparison', ['repeats_evidence', 'adds_evidence'], 'nonredundant_ids', ['b']),
 ])
 def test_direction_specific_result_is_not_an_action(direction, choices, key, expected):
-    s = packet(direction); request, domains = build_request(s, BASIS, 'v1')
+    s = packet(direction)
+    request, domains = build_request(s, BASIS, 'v1')
     result = decode_assessment(response(request, choices), s, domains, 'v1')
     assert result[key] == expected and result['authority'] == 'advisory_only'
     assert not {'execute', 'install', 'commit', 'approved'} & result.keys()
@@ -102,7 +109,8 @@ def test_direction_specific_result_is_not_an_action(direction, choices, key, exp
 
 @pytest.mark.parametrize('direction', list(Direction))
 def test_unknown_answers_preserve_abstention(direction):
-    s = packet(direction); request, domains = build_request(s, BASIS, 'v1')
+    s = packet(direction)
+    request, domains = build_request(s, BASIS, 'v1')
     choices = [list(q['criteria'])[-1] for q in request['questions'].values()]
     result = decode_assessment(response(request, choices), s, domains, 'v1')
     assert result['coverage']['decided'] == 0
@@ -115,8 +123,10 @@ def test_unknown_answers_preserve_abstention(direction):
     lambda s: s['candidates'][0].update(evidence_refs=['not-read.txt']),
 ])
 def test_bad_source_or_membership_rejected(mutation):
-    s = packet('material_order');mutation(s)
-    with pytest.raises(ValueError):build_request(s, BASIS, 'v1')
+    s = packet('material_order')
+    mutation(s)
+    with pytest.raises(ValueError):
+        build_request(s, BASIS, 'v1')
 
 
 def test_assess_off_does_not_read_inputs_ledger_key_or_write(tmp_path, monkeypatch, capsys):
@@ -135,11 +145,13 @@ def test_explicit_assess_cli_readback_and_mid_request_revocation(tmp_path, monke
     (tmp_path/'evidence.txt').write_text('actual evidence')
     (tmp_path/'basis.json').write_text(json.dumps({**BASIS, 'evidence': [{'ref': 'evidence.txt'}]}))
     (tmp_path/'input.json').write_text(json.dumps(packet('skill_suggestion')))
-    config = tmp_path/'config.json';config.write_text(json.dumps({'schema_version': 'loopx_jev_branch_config_v0',
+    config = tmp_path/'config.json'
+    config.write_text(json.dumps({'schema_version': 'loopx_jev_branch_config_v0',
         'mode': mode, 'scenarios': ['skill_suggestion'], 'model': 'fixture-v1', 'allow_egress': True}))
     initialize_run(tmp_path/'run', 1)
     def transport(request, *args):
-        if stale:(tmp_path/'evidence.txt').write_text('changed evidence')
+        if stale:
+            (tmp_path/'evidence.txt').write_text('changed evidence')
         return {'response': response(request)}
     code = assess(tmp_path/'input.json', tmp_path/'basis.json', config, tmp_path/'run', tmp_path/'report.json',
                   transport=transport, credential=lambda: 'fixture')
@@ -152,7 +164,8 @@ def test_explicit_assess_cli_readback_and_mid_request_revocation(tmp_path, monke
 
 
 def test_partial_coverage_retains_known_and_unknown_independently():
-    s = packet('skill_suggestion'); request, domains = build_request(s, BASIS, 'v1')
+    s = packet('skill_suggestion')
+    request, domains = build_request(s, BASIS, 'v1')
     r = response(request, ['applicable', 'unknown'])
     result = decode_assessment(r, s, domains, 'v1')
     assert result['coverage'] == {'decided': 1, 'total': 2}
@@ -189,19 +202,28 @@ def test_shipped_examples_match_actual_input_contract():
 
 
 def test_off_cli_process_does_not_import_transport(tmp_path):
-    import subprocess, sys
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
     script = '''import sys
 from loopx_jev.cli import main
 assert main(['assess','--input','missing','--basis','missing','--run-dir','missing','--report','missing']) == 0
 assert 'loopx_jev.transport' not in sys.modules
 '''
-    result = subprocess.run([sys.executable, '-c', script], cwd=tmp_path, capture_output=True, text=True, timeout=10)
+    # A source-checkout pytest path is not inherited by a fresh interpreter.
+    # Keep this test usable without installing the optional distribution globally.
+    root = Path(__file__).resolve().parents[3]
+    env = {**os.environ, 'PYTHONPATH': os.pathsep.join([str(root / 'packages/loopx-jev/src'), str(root)])}
+    result = subprocess.run([sys.executable, '-c', script], cwd=tmp_path, env=env,
+                            capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, result.stderr
     assert not list(tmp_path.iterdir())
 
 
 def test_cached_advice_is_revoked_during_replay_readback(tmp_path):
-    initialize_run(tmp_path/'run', 1);ledger = RunStore(tmp_path/'run')
+    initialize_run(tmp_path/'run', 1)
+    ledger = RunStore(tmp_path/'run')
     config = Config(mode='assist', scenarios=('skill_suggestion',), model='v1', allow_egress=True)
     def transport(request, *args): return {'response': response(request)}
     assert assess_one(packet('skill_suggestion'), BASIS, config, ledger, lambda: True, transport, lambda: 'fixture')['status'] == 'completed'

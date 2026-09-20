@@ -129,12 +129,13 @@ def assess_one(snapshot: dict[str, Any], basis: dict[str, Any], config: Config, 
                 order = decoder(previous["response"], snapshot, pairs, config.model,
                                      config.minimum_preference_probability)
             except PreferenceUnavailable:
-                return {**previous, "order": None, "replayed": True}
+                # Abstentions still require a fresh guard and replay measurements.
+                order = None
             except (ValueError, KeyError, TypeError):
                 return {**result, "reason": "invalid_cached_result", "dispatch": previous.get("dispatch")}
             if guard():
                 mark("replay_decode_and_guard")
-                return {**previous, output_key: output_value(order), "replayed": True,
+                return {**previous, output_key: output_value(order) if order is not None else None, "replayed": True,
                         "assessment_timing_ns": timings,
                         "cached_provider_measurements": True,
                         "assessment_total_ns": time.perf_counter_ns() - clock_started}
