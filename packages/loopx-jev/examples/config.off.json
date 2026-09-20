@@ -1,0 +1,16 @@
+{
+  "schema_version": "loopx_jev_branch_config_v0",
+  "mode": "off",
+  "scenarios": ["todo_order", "explore_order"],
+  "model": "jev-1.13.0",
+  "allow_egress": false,
+  "minimum_preference_probability": 0.6,
+  "limits": {
+    "max_candidates": 6,
+    "deadline_ms": 5000,
+    "max_requests_per_run": 20,
+    "max_parallel": 2,
+    "max_request_bytes": 65536,
+    "max_response_bytes": 65536
+  }
+}

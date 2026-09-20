@@ -1,0 +1,9 @@
+{
+  "goal_id": "replace-with-your-existing-goal",
+  "objective": "Deliver a backward-compatible export with independently checked legacy evidence",
+  "acceptance": ["Legacy fixtures verify the requested compatibility", "Publication remains separately authorized"],
+  "non_goals": ["No unrelated refactoring"],
+  "horizon": "one bounded next work item",
+  "already_known": "Replace this declaration with attributable current context",
+  "evidence": []
+}
