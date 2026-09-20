@@ -1,0 +1,31 @@
+{
+  "schema": "jev_advisory_input_v0",
+  "scenario": "replan_comparison",
+  "source": {
+    "owner": "explore",
+    "revision": "revision-1"
+  },
+  "facts": {
+    "decision": "Choose the next experiment",
+    "prior_outcomes": "The old cache-off run failed; cache implementation has since changed",
+    "constraints": "One short experiment"
+  },
+  "candidates": [
+    {
+      "id": "candidate_0",
+      "description": "Repeat cache-off experiment on the corrected implementation",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": false
+    },
+    {
+      "id": "candidate_1",
+      "description": "Reprint the old report without new observation",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": false
+    }
+  ]
+}

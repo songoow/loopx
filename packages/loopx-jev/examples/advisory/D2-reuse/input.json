@@ -1,0 +1,30 @@
+{
+  "schema": "jev_advisory_input_v0",
+  "scenario": "owner_reuse",
+  "source": {
+    "owner": "semantic_inventory",
+    "revision": "revision-1"
+  },
+  "facts": {
+    "new_concept": "delivery_state",
+    "intended_contract": "Represent whether independent user acceptance succeeded"
+  },
+  "candidates": [
+    {
+      "id": "candidate_0",
+      "description": "WorkerState: process lifecycle open/running/done; no acceptance authority",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": false
+    },
+    {
+      "id": "candidate_1",
+      "description": "ColorThemeState: selected light/dark color palette",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": false
+    }
+  ]
+}

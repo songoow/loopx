@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .advisory import Direction
+
 
 def strict_json(raw: str | bytes) -> Any:
     def pairs(items):
@@ -62,7 +64,7 @@ def load_config(path: Path | None) -> Config:
         raise ValueError("mode must be off, shadow or assist")
     scenarios = obj.get("scenarios", ["todo_order", "explore_order"])
     if (not isinstance(scenarios, list) or not scenarios or len(set(scenarios)) != len(scenarios)
-            or any(x not in {"todo_order", "explore_order"} for x in scenarios)):
+            or any(x not in {"todo_order", "explore_order", *Direction} for x in scenarios)):
         raise ValueError("unsupported selection scenario")
     model = obj.get("model", "")
     if not isinstance(model, str) or len(model) > 120:

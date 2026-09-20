@@ -1,0 +1,1 @@
+Existing WorkerState has enum open/running/done but done means process exit, not accepted delivery. Both concepts have similar literals yet different authorities and lifecycles. ColorThemeState is visual only.

@@ -317,3 +317,19 @@ def test_http_worker_preserves_ambiguous_provider_bytes_for_strict_validation(mo
     else:
         with pytest.raises(TransportFailure, match='invalid_transport_response'):
             transport.send({'state': {}, 'questions': {}}, config(), 'fixture')
+
+
+def test_deadline_includes_worker_spawn_before_sending_credential(monkeypatch):
+    from loopx_jev import transport
+    ticks = iter([0, 1, 200_000_000, 200_000_001])
+    monkeypatch.setattr(transport.time, 'perf_counter_ns', lambda: next(ticks))
+    observed = []
+    class Child:
+        def kill(self):observed.append('killed')
+        def communicate(self, *args, **kwargs):
+            assert not args, 'expired request must not send its credential envelope'
+            return b'', None
+    monkeypatch.setattr(transport.subprocess, 'Popen', lambda *a, **k: Child())
+    with pytest.raises(TransportFailure, match='deadline_exceeded'):
+        transport.send({'state': {}, 'questions': {}}, replace(config(), deadline_ms=100), 'fixture')
+    assert observed == ['killed']

@@ -1,0 +1,13 @@
+{
+  "goal_id": "bounded-study",
+  "objective": "Deliver the explicitly described outcome using the supplied goal and evidence, within existing permissions",
+  "acceptance": [
+    "Use the specified observable outcome; preserve scope and unsupported unknowns"
+  ],
+  "horizon": "one bounded next decision",
+  "evidence": [
+    {
+      "ref": "evidence.txt"
+    }
+  ]
+}

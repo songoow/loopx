@@ -1,0 +1,29 @@
+{
+  "schema": "jev_advisory_input_v0",
+  "scenario": "material_order",
+  "source": {
+    "owner": "decision_context",
+    "revision": "revision-1"
+  },
+  "facts": {
+    "question": "Which fixture proves the normalization contract?"
+  },
+  "candidates": [
+    {
+      "id": "candidate_0",
+      "description": "A: mandatory policy with no normalization evidence",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": true
+    },
+    {
+      "id": "candidate_1",
+      "description": "B: current independent Unicode fixture and actual output",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": false
+    }
+  ]
+}

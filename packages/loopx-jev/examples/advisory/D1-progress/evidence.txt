@@ -1,0 +1,1 @@
+Approved outcome: fix version zero import. Previous evidence was only an unverified user report. New independent test now reproduces the version zero failure with a fixed expected output. This is a necessary prerequisite to verifying the fix.

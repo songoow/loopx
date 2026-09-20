@@ -108,6 +108,7 @@ def capture(argv: list[str], output: Path, invoke: Callable = _original) -> int:
 def execute(argv: list[str], *, config_path: Path | None, capture_path: Path | None,
             basis_path: Path | None, run_dir: Path | None, report_path: Path | None,
             invoke: Callable = _original, transport=None, credential=None) -> int:
+    command_started = time.perf_counter_ns()
     config = load_config(config_path)
     argv = _arguments(argv)
     # Off touches no capture, basis, run directory, credential, transport or report.
@@ -153,14 +154,20 @@ def execute(argv: list[str], *, config_path: Path | None, capture_path: Path | N
                     and _source_basis(argv) == captured["source_basis"])
         except (OSError, ValueError, RuntimeError, KeyError, StopIteration):
             return False
+    prepared_ns = time.perf_counter_ns()
+    phase_times = {"prepare": prepared_ns - command_started}
     # Shadow invokes the real workflow first. It never exposes advice to it and
     # does not delay selection awaiting inference. Optional evaluation follows.
     if config.mode == "shadow":
         code = invoke(argv)
+        owner_finished = time.perf_counter_ns()
         results = assess_all(snapshots, basis, config, store, current, transport or send, credential)
+        phase_times.update(owner_execution=owner_finished - prepared_ns,
+                           assessment_inclusive=time.perf_counter_ns() - owner_finished)
         events = []
     else:
         results = assess_all(snapshots, basis, config, store, current, transport or send, credential)
+        assessed_ns = time.perf_counter_ns()
         preferences = {r["snapshot_id"]: r["order"] for r in results
                        if r["status"] == "completed" and r["order"] is not None}
         # The current original selector recomputes the snapshot. Different facts
@@ -168,9 +175,12 @@ def execute(argv: list[str], *, config_path: Path | None, capture_path: Path | N
         with ranking_context(preferences=preferences, guard=current) as context:
             code = invoke(argv)
         events = context.events
+        phase_times.update(assessment_inclusive=assessed_ns - prepared_ns,
+                           owner_execution=time.perf_counter_ns() - assessed_ns)
+    phase_times["total_before_report_write"] = time.perf_counter_ns() - command_started
     atomic_json(report_path, {"format": "jev_branch_report_v0", "mode": config.mode,
                               "implementation": _implementation(), "upstream_exit_code": code,
-                              "assessments": results, "consumption": events,
+                              "assessments": results, "consumption": events, "timing_ns": phase_times,
                               "boundary": "local selector/planner observations; not dispatch or completion receipts"})
     return code
 
@@ -191,12 +201,21 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--run-dir", type=Path)
     run.add_argument("--report", type=Path)
     run.add_argument("args", nargs=argparse.REMAINDER)
+    advisory = commands.add_parser("assess", help="explicit D1-D6 artifact assessment; no owner mutations")
+    advisory.add_argument("--input", type=Path, required=True)
+    advisory.add_argument("--basis", type=Path, required=True)
+    advisory.add_argument("--config", type=Path)
+    advisory.add_argument("--run-dir", type=Path, required=True)
+    advisory.add_argument("--report", type=Path, required=True)
     demo = commands.add_parser("demo", help="isolated actual-selector/planner examples; fixture provider by default")
     demo.add_argument("--output-dir", type=Path, required=True)
     demo.add_argument("--live", action="store_true")
     demo.add_argument("--model", default="jev-1.13.0")
     parsed = parser.parse_args(argv)
     try:
+        if parsed.command == "assess":
+            from .advisory_cli import assess
+            return assess(parsed.input, parsed.basis, parsed.config, parsed.run_dir, parsed.report)
         if parsed.command == "init-run":
             from .store import initialize_run
             initialize_run(parsed.path, parsed.max_requests)

@@ -84,6 +84,28 @@ def build_request(snapshot: dict[str, Any], basis: dict[str, Any], model: str,
             "questions": questions}, pairs
 
 
+def validate_choice(answer: Any, labels: tuple[str, ...]) -> tuple[str, float]:
+    if not isinstance(answer, dict) or answer.get("type") != "choice":
+        raise ValueError("invalid_answer_type")
+    probabilities = answer.get("probabilities")
+    if not isinstance(probabilities, dict) or set(probabilities) != set(labels):
+        raise ValueError("invalid_probability_domain")
+    if any(isinstance(v, bool) or not isinstance(v, (float, int))
+           or not math.isfinite(v) or not 0 <= v <= 1 for v in probabilities.values()):
+        raise ValueError("invalid_probability")
+    if abs(sum(probabilities.values()) - 1) > 1e-4:
+        raise ValueError("invalid_probability_sum")
+    choice = answer.get("choice")
+    if choice not in labels or probabilities[choice] + 1e-9 < max(probabilities.values()):
+        raise ValueError("invalid_selected_choice")
+    confidence = answer.get("confidence")
+    if confidence is not None and (isinstance(confidence, bool)
+            or not isinstance(confidence, (float, int)) or not math.isfinite(confidence)
+            or not 0 <= confidence <= 1):
+        raise ValueError("invalid_confidence")
+    return choice, probabilities[choice]
+
+
 def decode_order(response: dict[str, Any], snapshot: dict[str, Any], pairs: dict[str, tuple[str, str]],
                  model: str, minimum: float = 0.6) -> tuple[str, ...]:
     if not isinstance(response, dict) or response.get("model") != model:
@@ -100,25 +122,8 @@ def decode_order(response: dict[str, Any], snapshot: dict[str, Any], pairs: dict
     abstained = False
     for name, (left, right) in pairs.items():
         answer = answers[name]
-        if not isinstance(answer, dict) or answer.get("type") != "choice":
-            raise ValueError("invalid_answer_type")
-        probabilities = answer.get("probabilities")
-        if not isinstance(probabilities, dict) or set(probabilities) != set(LABELS):
-            raise ValueError("invalid_probability_domain")
-        if any(isinstance(v, bool) or not isinstance(v, (float, int))
-               or not math.isfinite(v) or not 0 <= v <= 1 for v in probabilities.values()):
-            raise ValueError("invalid_probability")
-        if abs(sum(probabilities.values()) - 1) > 1e-4:
-            raise ValueError("invalid_probability_sum")
-        choice = answer.get("choice")
-        if choice not in LABELS or probabilities[choice] + 1e-9 < max(probabilities.values()):
-            raise ValueError("invalid_selected_choice")
-        confidence = answer.get("confidence")
-        if confidence is not None and (isinstance(confidence, bool)
-                or not isinstance(confidence, (float, int)) or not math.isfinite(confidence)
-                or not 0 <= confidence <= 1):
-            raise ValueError("invalid_confidence")
-        if choice == "insufficient_evidence" or probabilities[choice] < minimum:
+        choice, probability = validate_choice(answer, LABELS)
+        if choice == "insufficient_evidence" or probability < minimum:
             abstained = True
             continue
         if choice == "tie":

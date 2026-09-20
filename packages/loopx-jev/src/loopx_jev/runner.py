@@ -75,17 +75,34 @@ def read_basis(path: Path, workspace: Path) -> tuple[dict[str, Any], Callable[[]
 def assess_one(snapshot: dict[str, Any], basis: dict[str, Any], config: Config, store: RunStore,
                guard: Callable[[], bool], transport: Callable = send,
                credential: Callable[[], str | None] | None = None) -> dict[str, Any]:
+    clock_started = clock_previous = time.perf_counter_ns()
+    timings = {}
+    def mark(name):
+        nonlocal clock_previous
+        now = time.perf_counter_ns()
+        timings[name] = now - clock_previous
+        clock_previous = now
+    from .advisory import Direction
+    builder, decoder, version = build_request, decode_order, QUESTION_VERSION
+    output_key = "order"
+    output_value = list
+    if snapshot.get("scenario") in set(Direction):
+        from .advisory import build_request as advisory_request, decode_assessment, QUESTION_VERSION as advisory_version
+        builder, decoder, version = advisory_request, decode_assessment, advisory_version
+        output_key, output_value = "assessment", dict
     identity = snapshot_id(snapshot)
     result = {"snapshot_id": identity, "scenario": snapshot.get("scenario"), "status": "not_evaluated",
-              "dispatch": "not_sent", "order": None, "usage": None, "cost_usd": None}
+              "dispatch": "not_sent", "order": None, "usage": None, "cost_usd": None,
+              "assessment_timing_ns": timings}
     if config.mode == "off" or snapshot.get("scenario") not in config.scenarios:
         return {**result, "reason": "disabled"}
     if not config.allow_egress:
         return {**result, "reason": "egress_denied"}
     if not guard():
         return {**result, "reason": "revoked_or_stale"}
+    mark("eligibility_guard")
     try:
-        request, pairs = build_request(snapshot, basis, config.model, config.max_candidates)
+        request, pairs = builder(snapshot, basis, config.model, config.max_candidates)
     except (ValueError, KeyError, TypeError) as exc:
         return {**result, "reason": str(exc) if isinstance(exc, ValueError) else "invalid_snapshot"}
     raw = request_bytes(request)
@@ -97,40 +114,56 @@ def assess_one(snapshot: dict[str, Any], basis: dict[str, Any], config: Config, 
     if not key:
         return {**result, "reason": "missing_key"}
     request_id = hashlib.sha256(request_bytes({"snapshot": identity, "request": request,
-                                               "question_version": QUESTION_VERSION,
+                                               "question_version": version,
                                                "config_generation": config.generation,
                                                "source_basis": basis.get("source_basis")})).hexdigest()
+    mark("request_preparation")
     try:
         previous = store.reserve(request_id, config.max_requests_per_run)
     except (OSError, ValueError):
         return {**result, "reason": "attempt_store_unavailable"}
+    mark("reservation")
     if previous is not None:
         if previous.get("request_id") == request_id and previous.get("response") is not None:
             try:
-                order = decode_order(previous["response"], snapshot, pairs, config.model,
+                order = decoder(previous["response"], snapshot, pairs, config.model,
                                      config.minimum_preference_probability)
             except PreferenceUnavailable:
                 return {**previous, "order": None, "replayed": True}
             except (ValueError, KeyError, TypeError):
                 return {**result, "reason": "invalid_cached_result", "dispatch": previous.get("dispatch")}
             if guard():
-                return {**previous, "order": list(order), "replayed": True}
+                mark("replay_decode_and_guard")
+                return {**previous, output_key: output_value(order), "replayed": True,
+                        "assessment_timing_ns": timings,
+                        "cached_provider_measurements": True,
+                        "assessment_total_ns": time.perf_counter_ns() - clock_started}
+            return {**result, "status": "stale", "reason": "revoked_or_stale_on_replay",
+                    "dispatch": previous.get("dispatch"), "replayed": True}
         return {**result, "reason": previous.get("status", "prior_attempt_unresolved"),
                 "dispatch": previous.get("dispatch", "may_have_been_sent"), "replayed": True}
     started = time.monotonic()
-    result.update(request_id=request_id, question_version=QUESTION_VERSION,
+    result.update(request_id=request_id, question_version=version,
                   requested_model=config.model, config_generation=config.generation,
                   input_bytes=len(raw), execution_kind="live_provider" if transport is send else "fixture_injected")
     try:
         if not guard():
             result["reason"] = "revoked_before_send"
         else:
-            envelope = transport(request, config, key)
+            mark("pre_dispatch_guard")
+            try:
+                envelope = transport(request, config, key)
+            finally:
+                mark("transport_inclusive")
+            for timing_key in ("transport_timing_ns", "worker_timing_ns"):
+                timing = envelope.get(timing_key)
+                if isinstance(timing, dict) and all(isinstance(v, int) and not isinstance(v, bool) and v >= 0 for v in timing.values()):
+                    result[timing_key] = timing
             response = envelope["response"]
             result["dispatch"] = "response_received"
             unavailable = None
             try:
-                order = decode_order(response, snapshot, pairs, config.model,
+                order = decoder(response, snapshot, pairs, config.model,
                                      config.minimum_preference_probability)
             except PreferenceUnavailable as exc:
                 order = None
@@ -146,18 +179,23 @@ def assess_one(snapshot: dict[str, Any], basis: dict[str, Any], config: Config, 
                 result["usage"] = {k: v for k, v in usage.items() if k in {"input_tokens", "output_tokens"}
                                    and isinstance(v, int) and not isinstance(v, bool) and v >= 0}
             result.update(response=saved_response)
+            mark("response_validation")
             if not guard():
                 result.update(status="stale", reason="revoked_or_stale_after_response")
             elif unavailable:
                 result.update(status="abstained" if unavailable == "insufficient_evidence_or_uncertain" else "inconsistent",
                               reason=unavailable)
             else:
-                result.update(status="completed", order=list(order), reason=None)
+                result.update(status="completed", reason=None)
+                result[output_key] = output_value(order)
+                if output_key == "assessment" and not order["coverage"]["decided"]:
+                    result.update(status="abstained", reason="insufficient_evidence_or_uncertain")
     except TransportFailure as exc:
         result.update(status="failed", reason=exc.code, dispatch=exc.dispatch)
     except (ValueError, TypeError, KeyError, OSError):
         result.update(status="failed", reason="invalid_response_or_local_io",
                       dispatch="may_have_been_sent" if result["dispatch"] == "not_sent" else result["dispatch"])
+    mark("completion_or_failure")
     result["elapsed_ms"] = round((time.monotonic() - started) * 1000)
     try:
         store.finish(request_id, result)
@@ -165,6 +203,9 @@ def assess_one(snapshot: dict[str, Any], basis: dict[str, Any], config: Config, 
         # The existing reservation still prevents a silent repeat. Do not consume
         # an unrecorded answer or turn this optional write failure into work failure.
         result.update(status="failed", order=None, reason="attempt_result_unavailable")
+        result.pop("assessment", None)
+    mark("result_write")
+    result["assessment_total_ns"] = time.perf_counter_ns() - clock_started
     return result
 
 
