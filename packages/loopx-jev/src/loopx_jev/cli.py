@@ -188,6 +188,8 @@ def execute(argv: list[str], *, config_path: Path | None, capture_path: Path | N
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+    from .drift_cli import register as register_drift
+    register_drift(commands)
     init = commands.add_parser("init-run", help="explicitly create a finite private attempt budget")
     init.add_argument("path", type=Path)
     init.add_argument("--max-requests", type=int, default=20)
@@ -214,6 +216,9 @@ def main(argv: list[str] | None = None) -> int:
     demo.add_argument("--ranking-policy", default="pairwise", choices=["pairwise", "single_choice"])
     parsed = parser.parse_args(argv)
     try:
+        if parsed.command == 'drift':
+            from .drift_cli import run as run_drift
+            return run_drift(parsed, _original)
         if parsed.command == "assess":
             from .advisory_cli import assess
             return assess(parsed.input, parsed.basis, parsed.config, parsed.run_dir, parsed.report)
