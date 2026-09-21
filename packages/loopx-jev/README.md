@@ -247,3 +247,9 @@ Try it against the real selector and planner without a key
 (`loopx-jev demo --ranking-policy single_choice --output-dir <new dir>`), or
 with a key and `--live`. `pairwise` remains the default; the switch exists so
 the two question shapes can be compared on identical captured snapshots.
+
+## D1 drift shadow capture
+
+`loopx-jev drift` adds scoped file/evidence capture around a real `refresh-state`
+and a separate model consumer. It supports off/shadow only and never steers or
+pauses an Agent. See [setup, local configuration, readback, rollback and limits](DRIFT_SHADOW.md).

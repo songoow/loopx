@@ -139,3 +139,8 @@ selector/planner 的选择，再把同一组合法任务和该选择交给实际
 不需要 key 即可在真实 selector/planner 上试跑：
 `loopx-jev demo --ranking-policy single_choice --output-dir <新目录>`；有 key 时加 `--live`。
 默认仍是 `pairwise`；这个开关用于在同一批捕获快照上比较两种题型。
+
+## D1 漂移旁路采集
+
+`loopx-jev drift` 在真实 `refresh-state` 前后采集限定文件和证据，由独立消费者调用模型。
+仅支持 off/shadow，不会纠正或暂停 Agent。参见[启用、本地配置、结果读回、回退及限制](DRIFT_SHADOW.zh-CN.md)。
