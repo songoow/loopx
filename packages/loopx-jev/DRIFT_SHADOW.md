@@ -99,6 +99,11 @@ transparent continuation.
   changes between checkpoints, plus explicitly named untracked files and optional
   evidence files. Git is read only. Index-only changes that leave working files
   identical are `index_only_change_unknown`; no model guess is made.
+- Model input includes both checkpoints' scoped file contents, including unchanged
+  files, alongside the delta. A probe or new test often cannot be interpreted from
+  changed lines alone. The overall request-byte limit still applies: reject an
+  oversized packet, never silently remove required context. Equal patches against
+  different surrounding source are distinct evidence identities.
 - Two reads check stability and the post-refresh read checks it again. This is
   not an atomic filesystem snapshot or an authorship proof. Use a single-writer
   worktree. Unobserved edits restored between reads and out-of-scope work remain

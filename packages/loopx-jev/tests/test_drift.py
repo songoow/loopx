@@ -500,6 +500,14 @@ def test_evidence_only_work_is_not_dropped_as_no_code_delta(study):
     calls = []
     drift.drain(root, config, transport=provider(calls), credential=lambda: "fixture")
     assert "negative experiment excluded" in json.dumps(calls)
+    context = next(
+        item
+        for item in calls[0]["state"]["goal_basis"]["evidence"]
+        if item["ref"] == "scoped-checkpoint-context"
+    )
+    observed = json.loads(context["text"])
+    assert observed["before"]["code.py"]["text"] == "TIMEOUT = 1\n"
+    assert observed["after"]["code.py"]["text"] == "TIMEOUT = 1\n"
 
 
 @pytest.mark.parametrize("bad_state", [[], {}, {"schema": drift.SCHEMA}])
@@ -530,3 +538,14 @@ def test_enable_validation_precedes_configuration_write(study):
     with pytest.raises(ValueError, match="pinned_model"):
         drift.configure(root, "shadow")
     assert before == (config.read_bytes(), (root / "state.json").read_bytes())
+
+
+def test_full_context_over_request_budget_abstains_without_truncating_or_sending(study):
+    root, repo, basis, config = study
+    value = json.loads(config.read_text())
+    value["limits"] = {"max_request_bytes": 1024}
+    atomic_json(config, value)
+    (repo / "code.py").write_text("# " + "context " * 150 + "\nTIMEOUT = 2\n")
+    drift.enqueue(root, drift.prepare(root, config), record(study))
+    drift.drain(root, config, transport=forbidden, credential=forbidden)
+    assert drift.status(root)["events"][0]["reason"] == "request_too_large"

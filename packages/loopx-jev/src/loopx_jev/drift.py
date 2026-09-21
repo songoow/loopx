@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import json
 from pathlib import Path
 import time
 from typing import Any, Callable
@@ -196,7 +197,18 @@ def enqueue(
                     if previous["index_digest"] == captured["index_digest"]
                     else "index_only_change_unknown"
                 )
-        evidence_id = digest({"contract": prepared["contract_revision"], "delta": text})
+        # Equal patches against different surrounding source are different evidence.
+        context = {
+            "before": previous["files"] if previous else None,
+            "after": captured["files"],
+        }
+        evidence_id = digest(
+            {
+                "contract": prepared["contract_revision"],
+                "delta": text,
+                "context": context,
+            }
+        )
         if status == "queued" and evidence_id in current["seen_evidence"]:
             status = "duplicate_evidence"
         if status == "queued":
@@ -208,6 +220,12 @@ def enqueue(
             basis = dict(prepared["basis"])
             basis["evidence"] = [
                 *basis.get("evidence", []),
+                {
+                    "ref": "scoped-checkpoint-context",
+                    "text": json.dumps(context, ensure_ascii=False, sort_keys=True),
+                    "origin": "host_scoped_file_read",
+                    "sha256": digest(context),
+                },
                 {
                     "ref": "captured-workspace-delta",
                     "text": text,
