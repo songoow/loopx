@@ -21,7 +21,7 @@ SECRET = re.compile(r"apikey_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY----
 def read_basis(path: Path, workspace: Path) -> tuple[dict[str, Any], Callable[[], bool]]:
     """Read operator-supplied criterion plus exact local evidence; no remote dereference."""
     manifest, manifest_hash = read_json(path, 32768)
-    allowed = {"goal_id", "objective", "acceptance", "non_goals", "horizon", "evidence", "already_known"}
+    allowed = {"goal_id", "objective", "acceptance", "non_goals", "horizon", "evidence", "already_known", "ranking_evidence"}
     if not isinstance(manifest, dict) or set(manifest) - allowed:
         raise ValueError("unknown basis fields")
     if not isinstance(manifest.get("objective"), str) or not manifest["objective"].strip():
@@ -83,9 +83,16 @@ def assess_one(snapshot: dict[str, Any], basis: dict[str, Any], config: Config, 
         timings[name] = now - clock_previous
         clock_previous = now
     from .advisory import Direction
-    builder, decoder, version = build_request, decode_order, QUESTION_VERSION
+    builder: Callable[..., Any] = build_request
+    decoder: Callable[..., Any] = decode_order
+    version = QUESTION_VERSION
     output_key = "order"
-    output_value = list
+    output_value: Callable[..., Any] = list
+    atomic = (config.ranking_policy == "evidence_atomic"
+              and snapshot.get("scenario") in {"todo_order", "explore_order"})
+    if atomic:
+        from .atomic_ranking import build_request as atomic_request, decode_order as atomic_decode, QUESTION_VERSION as atomic_version
+        builder, decoder, version = atomic_request, atomic_decode, atomic_version
     if snapshot.get("scenario") in set(Direction):
         from .advisory import build_request as advisory_request, decode_assessment, QUESTION_VERSION as advisory_version
         builder, decoder, version = advisory_request, decode_assessment, advisory_version
@@ -126,8 +133,9 @@ def assess_one(snapshot: dict[str, Any], basis: dict[str, Any], config: Config, 
     if previous is not None:
         if previous.get("request_id") == request_id and previous.get("response") is not None:
             try:
-                order = decoder(previous["response"], snapshot, pairs, config.model,
-                                     config.minimum_preference_probability)
+                decoded = decoder(previous["response"], snapshot, pairs, config.model,
+                                  config.minimum_preference_probability)
+                order = decoded.order if atomic else decoded
             except PreferenceUnavailable:
                 # Abstentions still require a fresh guard and replay measurements.
                 order = None
@@ -164,8 +172,13 @@ def assess_one(snapshot: dict[str, Any], basis: dict[str, Any], config: Config, 
             result["dispatch"] = "response_received"
             unavailable = None
             try:
-                order = decoder(response, snapshot, pairs, config.model,
-                                     config.minimum_preference_probability)
+                decoded = decoder(response, snapshot, pairs, config.model,
+                                  config.minimum_preference_probability)
+                order = decoded.order if atomic else decoded
+                if atomic:
+                    result["ranking_decision"] = {"reason": decoded.reason, "signals": decoded.signals}
+                    if order is None:
+                        unavailable = "insufficient_evidence_or_uncertain"
             except PreferenceUnavailable as exc:
                 order = None
                 unavailable = str(exc)

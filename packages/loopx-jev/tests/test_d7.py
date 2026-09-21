@@ -55,7 +55,8 @@ def _setup(tmp_path,monkeypatch,provider):
 
 @pytest.mark.parametrize('provider',['markdown','file','sqlite'])
 @pytest.mark.parametrize('mode',['off','shadow','assist'])
-def test_actual_quota_cli_and_real_authority(tmp_path,monkeypatch,provider,mode):
+@pytest.mark.parametrize('policy',['pairwise','evidence_atomic'])
+def test_actual_quota_cli_and_real_authority(tmp_path,monkeypatch,provider,mode,policy):
     monkeypatch.chdir(tmp_path)
     args,state,runtime,registry=_setup(tmp_path,monkeypatch,provider)
     capture_file=tmp_path/'capture.json'; config_file=tmp_path/'jev.json'; basis_file=tmp_path/'basis.json'
@@ -73,10 +74,18 @@ def test_actual_quota_cli_and_real_authority(tmp_path,monkeypatch,provider,mode)
     assert capture(args,capture_file,invoke=invoke)==0
     captured=json.loads(capture_file.read_text())
     assert captured['snapshots'], 'actual quota path must reach the owner capture, not a fabricated snapshot'
+    if policy == 'evidence_atomic':
+        from atomic_ranking_fixture import bind_atomic_evidence
+        bind_atomic_evidence(tmp_path, config_file, capture_file, basis_file)
     before=state.read_bytes() if state.exists() else None
     authority_before=read_canonical_todos_if_promoted(runtime_root=runtime,goal_id='goal-a')
     calls=[]
-    def transport(*arguments):calls.append(1);return fixture_response(*arguments)
+    def transport(*arguments):
+        calls.append(1)
+        if policy == 'evidence_atomic':
+            from atomic_ranking_fixture import atomic_response
+            return atomic_response(*arguments)
+        return fixture_response(*arguments)
     assert execute(args,config_path=config_file,capture_path=capture_file,basis_path=basis_file,run_dir=run,
                    report_path=tmp_path/'report.json',invoke=invoke,transport=transport,credential=lambda:'fixture')==0
     packet=packets[-1]

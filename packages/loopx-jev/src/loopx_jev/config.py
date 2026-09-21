@@ -47,6 +47,7 @@ class Config:
     max_response_bytes: int = 65536
     minimum_preference_probability: float = 0.6
     generation: str = "off"
+    ranking_policy: str = "pairwise"
 
 
 def load_config(path: Path | None) -> Config:
@@ -54,7 +55,7 @@ def load_config(path: Path | None) -> Config:
         return Config()
     obj, generation = read_json(path, 16384)
     allowed = {"schema_version", "mode", "scenarios", "model", "allow_egress", "limits",
-               "minimum_preference_probability"}
+               "minimum_preference_probability", "ranking_policy"}
     if not isinstance(obj, dict) or set(obj) - allowed:
         raise ValueError("unknown Jev configuration fields")
     if obj.get("schema_version") != "loopx_jev_branch_config_v0":
@@ -84,8 +85,11 @@ def load_config(path: Path | None) -> Config:
         low, high = bounds[name]
         if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
             raise ValueError(f"invalid {name}")
+    ranking_policy = obj.get("ranking_policy", "pairwise")
+    if ranking_policy not in {"pairwise", "evidence_atomic"}:
+        raise ValueError("invalid ranking policy")
     minimum = obj.get("minimum_preference_probability", 0.6)
     if isinstance(minimum, bool) or not isinstance(minimum, (int, float)) or not 0.5 <= minimum <= 1:
         raise ValueError("invalid preference probability threshold")
     return Config(mode=mode, scenarios=tuple(scenarios), model=model, allow_egress=egress,
-                  generation=generation, minimum_preference_probability=minimum, **limits)
+                  generation=generation, minimum_preference_probability=minimum, ranking_policy=ranking_policy, **limits)
