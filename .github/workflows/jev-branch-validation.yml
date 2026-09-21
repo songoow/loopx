@@ -3,6 +3,8 @@ name: Jev branch validation
 on:
   push:
     branches: [codex/jev-integrated-pilot]
+  pull_request:
+    branches: [codex/jev-integrated-pilot]
   workflow_dispatch:
 
 permissions:
@@ -14,7 +16,7 @@ concurrency:
 
 jobs:
   offline-tests:
-    if: github.repository == 'songoow/loopx' && github.ref == 'refs/heads/codex/jev-integrated-pilot'
+    if: github.repository == 'songoow/loopx' && (github.ref == 'refs/heads/codex/jev-integrated-pilot' || github.base_ref == 'codex/jev-integrated-pilot')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -24,6 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: project
           persist-credentials: false
       - uses: actions/checkout@v4
@@ -53,7 +56,7 @@ jobs:
           node --version
           python --version
           case "$JEV_TEST_AREA" in
-            adapter) python -m pytest packages/loopx-jev/tests/test_adapter.py -q --junitxml="$RUNNER_TEMP/jev-adapter.xml" ;;
+            adapter) python -m pytest packages/loopx-jev/tests/test_adapter.py packages/loopx-jev/tests/test_advisory.py packages/loopx-jev/tests/test_ranking_outcomes.py packages/loopx-jev/tests/test_atomic_ranking.py -q --junitxml="$RUNNER_TEMP/jev-adapter.xml" ;;
             d7) python -m pytest packages/loopx-jev/tests/test_d7.py tests/control_plane/test_scoped_gate_fallback_cli.py tests/control_plane/test_todo_decision_scope_runtime_boundary.py tests/control_plane/test_todo_decision_scope_consistency.py -q --junitxml="$RUNNER_TEMP/jev-d7.xml" ;;
             d8) python -m pytest packages/loopx-jev/tests/test_d8.py tests/test_explore_router_acceptance.py tests/test_explore_resource_portfolio.py tests/test_explore_monitor_lane_budget.py tests/test_explore_worker_topic_affinity.py -q --junitxml="$RUNNER_TEMP/jev-d8.xml" ;;
             typed-regression) node --no-warnings --experimental-sqlite --experimental-strip-types --test tests/control_plane_ts/scoped_gate_fallback.test.ts tests/control_plane_ts/decision_scope.test.ts tests/control_plane_ts/turn_settlement.test.ts ;;

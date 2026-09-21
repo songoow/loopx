@@ -1,0 +1,29 @@
+{
+  "schema": "jev_advisory_input_v0",
+  "scenario": "skill_suggestion",
+  "source": {
+    "owner": "project_skill_delivery",
+    "revision": "revision-1"
+  },
+  "facts": {
+    "task": "Review a GitHub code change, do not generate slides"
+  },
+  "candidates": [
+    {
+      "id": "candidate_0",
+      "description": "repository-review: inspect code diffs and validation evidence",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": false
+    },
+    {
+      "id": "candidate_1",
+      "description": "review-slides: create business performance slides",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": false
+    }
+  ]
+}

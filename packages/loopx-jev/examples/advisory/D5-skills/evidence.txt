@@ -1,0 +1,1 @@
+Catalog: repository-review inspects diffs and evidence, without auto merge. review-slides generates a slide deck about business performance and cannot inspect source code.

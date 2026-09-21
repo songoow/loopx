@@ -93,7 +93,8 @@ def test_complete_synthetic_chain_has_real_subprocess_artifacts(tmp_path,capsys)
 
 @pytest.mark.parametrize('provider',['file','sqlite'])
 @pytest.mark.parametrize('mode',['off','shadow','assist'])
-def test_actual_explore_cli_preserves_owner_admission(tmp_path,monkeypatch,provider,mode):
+@pytest.mark.parametrize('policy',['pairwise','evidence_atomic'])
+def test_actual_explore_cli_preserves_owner_admission(tmp_path,monkeypatch,provider,mode,policy):
     import contextlib,io,json
     from loopx_jev.cli import capture,execute,_original
     from loopx_jev.demo import fixture_response
@@ -129,8 +130,13 @@ def test_actual_explore_cli_preserves_owner_admission(tmp_path,monkeypatch,provi
     before=read_canonical_todos_if_promoted(runtime_root=runtime,goal_id='goal-demo')
     assert capture(args,cap,invoke)==0
     assert json.loads(cap.read_text())['snapshots']
+    transport = fixture_response
+    if policy == 'evidence_atomic':
+        from atomic_ranking_fixture import bind_atomic_evidence, atomic_response
+        bind_atomic_evidence(tmp_path, conf, cap, basis)
+        transport = atomic_response
     assert execute(args,config_path=conf,capture_path=cap,basis_path=basis,run_dir=run,report_path=tmp_path/'report.json',
-                   invoke=invoke,transport=fixture_response,credential=lambda:'fixture')==0
+                   invoke=invoke,transport=transport,credential=lambda:'fixture')==0
     actual=packets[-1];selected=actual['selected_worker_branches'][0]
     assert selected['todo_ids']==(['todo_probe'] if mode=='assist' else ['todo_repeat'])
     assert actual['harness_compatibility']['launches_workers'] is False

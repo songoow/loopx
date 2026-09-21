@@ -1,0 +1,14 @@
+{
+  "schema": "jev_advisory_input_v0",
+  "scenario": "progress_review",
+  "source": {
+    "owner": "decision_context",
+    "revision": "revision-1"
+  },
+  "facts": {
+    "work_summary": "Built a reproduction test before changing the reader",
+    "history_available": true,
+    "work_state": "working"
+  },
+  "candidates": []
+}

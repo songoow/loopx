@@ -1,0 +1,29 @@
+{
+  "schema": "jev_advisory_input_v0",
+  "scenario": "claim_evidence",
+  "source": {
+    "owner": "pr_review_queue",
+    "revision": "revision-1"
+  },
+  "facts": {
+    "head_revision": "revision-1"
+  },
+  "candidates": [
+    {
+      "id": "candidate_0",
+      "description": "PostgreSQL integration was tested successfully",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": false
+    },
+    {
+      "id": "candidate_1",
+      "description": "Mocked unit test passed; live PostgreSQL remains untested",
+      "evidence_refs": [
+        "evidence.txt"
+      ],
+      "required": false
+    }
+  ]
+}

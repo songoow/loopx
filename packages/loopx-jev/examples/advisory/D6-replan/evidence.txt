@@ -1,0 +1,1 @@
+The cache implementation was corrected after the old failing experiment. Repeating cache-off now tests genuinely changed behavior. Reprinting the old report adds nothing.

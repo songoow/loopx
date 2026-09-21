@@ -21,7 +21,9 @@ evidence units 或 router 回报。原 dry-run 指标仍然只是估计，不是
 
 ## 安装与离线演示
 
-在这个分支的仓库根目录，使用 Python 3.11+、Node 22.18+ 和隔离环境：
+在这个分支的仓库根目录，使用 Python 3.11+ 和隔离环境。File authority 的
+Node 最低版本为 22.18；SQLite 请使用与 CI 一致的 Node 22.23.2。更高的 Node
+主版本不保证所带 SQLite 通过运行资格检查。
 
 ```bash
 uv venv .venv-jev
@@ -32,7 +34,8 @@ uv pip install --python .venv-jev/bin/python -e '.[test]' -e packages/loopx-jev
 每次使用新目录。演示调用真实 TS selector、Explore planner 和独立子进程产物读回；
 默认模型回复明确标为 `fixture_injected`。完整 quota/Explore CLI、File/SQLite、
 拒绝缺失产物以及独立验收后的 canonical Todo 完成由测试另外验证。
-这不代表真实 Codex/Claude 已运行，更不代表模型质量或完整 Turn 结算已验证。
+此演示本身不运行真实 Codex/Claude，也不验证模型质量或完整 Turn 结算。
+真实调用与独立宿主对照的已测范围见 [验证边界](VALIDATION.md)。
 
 ## 实际使用
 
@@ -83,7 +86,7 @@ frontier、任务、profile、router 和资源变化。
 请先确认账号支持这个固定模型。此命令最多两次调用，只发送合成演示材料。
 端点固定为 TypeSafe HTTPS；不跟随重定向，不用环境代理，不自动换模型，不记录错误响应正文。
 未获有效回复时 live 演示返回非零；弃权与服务失败分开显示。查看 comparison.json 的
-assessments，不把一次 HTTP 成功当作效果证据。本次开发环境 DNS 不可用，尚无真实 Jev 质量结果。
+assessments，不把一次 HTTP 成功当作效果证据。已完成有限合成样例的真实调用，范围和限制见 [验证边界](VALIDATION.md)。
 
 ## 并发、恢复与关闭
 
@@ -98,3 +101,29 @@ assessments，不把一次 HTTP 成功当作效果证据。本次开发环境 DN
 
 报告中的 preference_consumed 只说明实际选择接缝用了偏好，不是 worker 启动、
 独立接受或 Goal 完成回执。完整实验要另外记录真实执行、领域验收、费用和无增量案例。
+
+## 与真实工作 Agent 对照
+
+使用独立目录、相同初始文件、模型和工作预算分别运行 off/assist。先记录原
+selector/planner 的选择，再把同一组合法任务和该选择交给实际工作 Agent；
+不要强制 Agent 服从排序，否则只测到了执行排序的差异。依据宿主生成的产物
+独立执行验收，并记录 Agent 是否改选、实际用量、耗时、失败和没有变化的结果。
+
+首轮有限样例中，真实 Jev 改变了 D7/D8 排序，但 Codex 在关闭组也自行选择了
+相同的有效工作，两组都通过产物复验。因此尚无质量提升证据，单次耗时差异
+也不能证明效率提升。CLI 登录状态不等于模型可调用；认证失败应记为未完成。
+
+复测 SQLite 时必须隔离临时运行时目录；只切换 PATH 可能继续连接旧 Node
+启动的 Effect 服务。可先创建新的临时目录，再为该次 pytest 设置 TMPDIR，
+不要为实验重启正在服务其他 Goal 的运行时。
+
+## D1–D6 有限辅助判断入口
+
+可选包新增 `loopx-jev assess`，提供六类显式材料判断，不安装原生 hook，也不替代
+上游 owner。参见[可运行示例与耗时边界](examples/advisory/README.zh-CN.md)，其中说明
+输入、开关、证据缺失、调用预算和各阶段耗时的准确含义。
+
+## 实验证据绑定策略
+
+参见[启用、证据绑定、关闭与本地测试](EVIDENCE_RANKING.zh-CN.md)。
+原 pairwise 保持默认；真实合成样例结果尚不支持把新证据门槛升级为默认优化。

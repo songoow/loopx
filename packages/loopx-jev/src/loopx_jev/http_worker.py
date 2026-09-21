@@ -1,6 +1,7 @@
 """Private one-shot transport worker. Never print exception text or response bodies."""
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -13,6 +14,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def main():
+    worker_started = time.perf_counter_ns()
     try:
         envelope = json.loads(sys.stdin.buffer.read(270000))
         limit = int(envelope["limit"])
@@ -26,12 +28,26 @@ def main():
             {"Authorization": "Bearer " + key, "Content-Type": "application/json", "Accept": "application/json"},
             method="POST")
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+        http_started = time.perf_counter_ns()
         with opener.open(request, timeout=float(envelope["timeout"])) as response:
+            headers_received = time.perf_counter_ns()
             payload = response.read(limit + 1)
+            body_received = time.perf_counter_ns()
         if len(payload) > limit:
             result = {"error": "response_too_large", "dispatch": "response_received"}
         else:
-            result = {"response": json.loads(payload), "dispatch": "response_received"}
+            # Check framing without normalizing the provider bytes: converting
+            # to a dict here would erase duplicate keys before strict_json in
+            # the parent can reject an ambiguous answer. Keep the bounded body
+            # inside the private pipe, never in diagnostics or persisted logs.
+            json.loads(payload)
+            timing = {"prepare": http_started - worker_started,
+                      "request_to_headers": headers_received - http_started,
+                      "body_read": body_received - headers_received,
+                      "framing": time.perf_counter_ns() - body_received}
+            prefix = json.dumps({"dispatch": "response_received", "worker_timing_ns": timing}).encode()[:-1]
+            sys.stdout.buffer.write(prefix + b',"response":' + payload + b'}')
+            return
     except urllib.error.HTTPError as exc:
         # Do not log remote error content, which may reflect submitted inputs.
         result = {"error": "http_" + str(exc.code), "dispatch": "response_received"}

@@ -1,0 +1,19 @@
+{
+  "schema_version": "loopx_jev_branch_config_v0",
+  "mode": "off",
+  "scenarios": [
+    "claim_evidence",
+    "material_order",
+    "owner_reuse",
+    "progress_review",
+    "replan_comparison",
+    "skill_suggestion"
+  ],
+  "model": "jev-1.13.0",
+  "allow_egress": false,
+  "limits": {
+    "max_requests_per_run": 6,
+    "max_parallel": 2,
+    "deadline_ms": 15000
+  }
+}

@@ -1,0 +1,1 @@
+Source A is a mandatory governance source. It has no normalization data but must remain read. Source B provides independently expected Unicode literals and test output.

@@ -29,7 +29,8 @@ Actual execution must still recheck its original admission and identity.
 
 ## Install from this branch
 
-Requires Python 3.11+ and the branch's supported Node (22.18+). Use an isolated
+Requires Python 3.11+ and the branch's supported Node (22.18+ for File authority;
+use Node 22.23.2, as in CI, for the qualified SQLite runtime). Use an isolated
 environment from the **repository root**, not a globally installed LoopX:
 
 ```bash
@@ -198,3 +199,35 @@ The core keeps its original default behavior without the optional package.
 Preserve existing run tombstones while reusing run identities; archive or remove
 private artifacts only as an explicit operator action. No business state is rolled
 back by disabling or uninstalling.
+
+## Compare with a real working agent
+
+Run off/assist in separate directories with identical initial files, model and
+work budget. Record the actual selector/planner choice, then give the working
+agent the same legal task set and that recommendation. Allow it to choose a
+different legal task; forced compliance measures ordering alone. Independently
+validate generated artifacts and record overrides, usage, elapsed time, failures
+and unchanged outcomes.
+
+In the initial bounded examples, live Jev changed D7/D8 ordering, but Codex also
+chose the useful work with Jev off. Both arms passed artifact readback. This is
+not evidence of a quality gain; single-run timing differences cannot establish an
+efficiency gain either. CLI login status is not proof that model calls work;
+authentication failures remain incomplete host comparisons.
+
+For SQLite retesting, create a fresh temporary directory and set TMPDIR for that
+test process. Changing PATH alone can reconnect to an Effect service started
+with the old Node. Do not restart a runtime serving unrelated Goals for a study.
+
+## Bounded D1–D6 advisory command
+
+`loopx-jev assess` now provides six explicit artifact-based assessments in the
+optional package. It does not install native hooks or replace upstream owners.
+See the [runnable examples and timing contract](examples/advisory/README.md) for
+input schemas, off/shadow/assist behavior, evidence limits and stage durations.
+
+## Experimental evidence-bound policy
+
+See [activation, evidence binding, rollback and local tests](EVIDENCE_RANKING.md).
+The original pairwise policy remains the default; live synthetic results do not
+support promoting the additional evidence gate as a quality improvement.
