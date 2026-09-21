@@ -211,6 +211,7 @@ def main(argv: list[str] | None = None) -> int:
     demo.add_argument("--output-dir", type=Path, required=True)
     demo.add_argument("--live", action="store_true")
     demo.add_argument("--model", default="jev-1.13.0")
+    demo.add_argument("--ranking-policy", default="pairwise", choices=["pairwise", "single_choice"])
     parsed = parser.parse_args(argv)
     try:
         if parsed.command == "assess":
@@ -225,7 +226,8 @@ def main(argv: list[str] | None = None) -> int:
             return capture(parsed.args, parsed.output)
         if parsed.command == "demo":
             from .demo import run_demo
-            return run_demo(parsed.output_dir, live=parsed.live, model=parsed.model)
+            return run_demo(parsed.output_dir, live=parsed.live, model=parsed.model,
+                            ranking_policy=parsed.ranking_policy)
         return execute(parsed.args, config_path=parsed.config, capture_path=parsed.capture,
                        basis_path=parsed.basis, run_dir=parsed.run_dir, report_path=parsed.report)
     except (OSError, ValueError, KeyError, TypeError, RuntimeError, StopIteration):

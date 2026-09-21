@@ -86,7 +86,7 @@ def load_config(path: Path | None) -> Config:
         if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
             raise ValueError(f"invalid {name}")
     ranking_policy = obj.get("ranking_policy", "pairwise")
-    if ranking_policy not in {"pairwise", "evidence_atomic"}:
+    if ranking_policy not in {"pairwise", "evidence_atomic", "single_choice"}:
         raise ValueError("invalid ranking policy")
     minimum = obj.get("minimum_preference_probability", 0.6)
     if isinstance(minimum, bool) or not isinstance(minimum, (int, float)) or not 0.5 <= minimum <= 1:

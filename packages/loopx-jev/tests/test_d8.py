@@ -93,7 +93,7 @@ def test_complete_synthetic_chain_has_real_subprocess_artifacts(tmp_path,capsys)
 
 @pytest.mark.parametrize('provider',['file','sqlite'])
 @pytest.mark.parametrize('mode',['off','shadow','assist'])
-@pytest.mark.parametrize('policy',['pairwise','evidence_atomic'])
+@pytest.mark.parametrize('policy',['pairwise','evidence_atomic','single_choice'])
 def test_actual_explore_cli_preserves_owner_admission(tmp_path,monkeypatch,provider,mode,policy):
     import contextlib,io,json
     from loopx_jev.cli import capture,execute,_original
@@ -135,6 +135,10 @@ def test_actual_explore_cli_preserves_owner_admission(tmp_path,monkeypatch,provi
         from atomic_ranking_fixture import bind_atomic_evidence, atomic_response
         bind_atomic_evidence(tmp_path, conf, cap, basis)
         transport = atomic_response
+    if policy == 'single_choice':
+        from single_choice_fixture import bind_single_choice, single_choice_response
+        bind_single_choice(conf)
+        transport = single_choice_response
     assert execute(args,config_path=conf,capture_path=cap,basis_path=basis,run_dir=run,report_path=tmp_path/'report.json',
                    invoke=invoke,transport=transport,credential=lambda:'fixture')==0
     actual=packets[-1];selected=actual['selected_worker_branches'][0]

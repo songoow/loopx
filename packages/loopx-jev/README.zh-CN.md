@@ -127,3 +127,15 @@ selector/planner 的选择，再把同一组合法任务和该选择交给实际
 
 参见[启用、证据绑定、关闭与本地测试](EVIDENCE_RANKING.zh-CN.md)。
 原 pairwise 保持默认；真实合成样例结果尚不支持把新证据门槛升级为默认优化。
+
+## 实验单题选择策略
+
+`"ranking_policy": "single_choice"` 对每个政策等价组只问一道 Choice 题：选项是该组
+全部候选 id，外加显式的 `insufficient_evidence`。这是 TypeSafe 文档给"从列表中选一个"
+推荐的题型。各组独立判定，没有判定的组保留原顺序，因此两个垫底候选之间的模糊比较
+不会再拖累一个已经很明确的赢家（pairwise 只要任一对未过阈值就整组弃权）。采用规则不变：
+所选 id 不能是弃权选项，且其概率须达到 `minimum_preference_probability`。
+
+不需要 key 即可在真实 selector/planner 上试跑：
+`loopx-jev demo --ranking-policy single_choice --output-dir <新目录>`；有 key 时加 `--live`。
+默认仍是 `pairwise`；这个开关用于在同一批捕获快照上比较两种题型。

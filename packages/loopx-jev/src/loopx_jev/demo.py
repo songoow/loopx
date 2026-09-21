@@ -93,14 +93,16 @@ pathlib.Path('artifact.json').write_text(json.dumps(value))
             "execution_kind": "synthetic_subprocess_host", "canonical_completion": "not_exercised"}
 
 
-def run_demo(output: Path, *, live: bool = False, model: str = "jev-1.13.0") -> int:
+def run_demo(output: Path, *, live: bool = False, model: str = "jev-1.13.0",
+             ranking_policy: str = "pairwise") -> int:
     if output.exists():
         raise ValueError("use a new isolated output directory")
     output.mkdir(parents=True, mode=0o700)
     initialize_run(output / "attempts", max_requests=2)
     store = RunStore(output / "attempts")
     config = Config(mode="assist", model=model, allow_egress=True, max_requests_per_run=2,
-                    deadline_ms=5000, generation="isolated-demo-v1")
+                    deadline_ms=5000, generation=f"isolated-demo-v1-{ranking_policy}",
+                    ranking_policy=ranking_policy)
     basis = {"goal_id": "goal-demo", "objective": "Establish independently checkable backward compatibility and Unicode evidence",
              "acceptance": ["A real legacy fixture exists", "The normalization boundary is independently probed"],
              "horizon": "one bounded next work item", "already_known": "Plain ASCII already passes"}
@@ -122,7 +124,7 @@ def run_demo(output: Path, *, live: bool = False, model: str = "jev-1.13.0") -> 
             records.append({"scenario": scenario, "mode": mode, "selected": selected,
                             "events": state.events, "execution": execution})
         atomic_json(output / f"{scenario}-assessment.json", results)
-    report = {"provider_kind": "live_jev" if live else "fixture_injected",
+    report = {"provider_kind": "live_jev" if live else "fixture_injected", "ranking_policy": ranking_policy,
               "coding_host": "synthetic_subprocess_not_codex_or_claude", "records": records,
               "assessments": [{k: r.get(k) for k in ("scenario", "status", "dispatch", "reason", "actual_model", "usage")} for r in assessments],
               "boundary": "Demonstrates selected-work plumbing, not general model benefit or canonical settlement."}

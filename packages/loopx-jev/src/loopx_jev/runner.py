@@ -93,6 +93,10 @@ def assess_one(snapshot: dict[str, Any], basis: dict[str, Any], config: Config, 
     if atomic:
         from .atomic_ranking import build_request as atomic_request, decode_order as atomic_decode, QUESTION_VERSION as atomic_version
         builder, decoder, version = atomic_request, atomic_decode, atomic_version
+    elif (config.ranking_policy == "single_choice"
+          and snapshot.get("scenario") in {"todo_order", "explore_order"}):
+        from .single_choice import build_request as choice_request, decode_order as choice_decode, QUESTION_VERSION as choice_version
+        builder, decoder, version = choice_request, choice_decode, choice_version
     if snapshot.get("scenario") in set(Direction):
         from .advisory import build_request as advisory_request, decode_assessment, QUESTION_VERSION as advisory_version
         builder, decoder, version = advisory_request, decode_assessment, advisory_version

@@ -231,3 +231,19 @@ input schemas, off/shadow/assist behavior, evidence limits and stage durations.
 See [activation, evidence binding, rollback and local tests](EVIDENCE_RANKING.md).
 The original pairwise policy remains the default; live synthetic results do not
 support promoting the additional evidence gate as a quality improvement.
+
+## Experimental single-choice policy
+
+`"ranking_policy": "single_choice"` asks one Choice question per policy cohort:
+the complete candidate id list plus an explicit `insufficient_evidence` option,
+which is the question shape TypeSafe documents for selection. Each cohort is
+decided independently; an undecided cohort keeps its baseline order, so an
+ambiguous comparison between two tail candidates no longer discards a clear
+winner (the pairwise policy abstains unless every pair clears the threshold).
+The adoption rule is unchanged: the chosen id must not be the abstain option
+and its probability must reach `minimum_preference_probability`.
+
+Try it against the real selector and planner without a key
+(`loopx-jev demo --ranking-policy single_choice --output-dir <new dir>`), or
+with a key and `--live`. `pairwise` remains the default; the switch exists so
+the two question shapes can be compared on identical captured snapshots.

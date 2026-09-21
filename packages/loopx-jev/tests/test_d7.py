@@ -55,7 +55,7 @@ def _setup(tmp_path,monkeypatch,provider):
 
 @pytest.mark.parametrize('provider',['markdown','file','sqlite'])
 @pytest.mark.parametrize('mode',['off','shadow','assist'])
-@pytest.mark.parametrize('policy',['pairwise','evidence_atomic'])
+@pytest.mark.parametrize('policy',['pairwise','evidence_atomic','single_choice'])
 def test_actual_quota_cli_and_real_authority(tmp_path,monkeypatch,provider,mode,policy):
     monkeypatch.chdir(tmp_path)
     args,state,runtime,registry=_setup(tmp_path,monkeypatch,provider)
@@ -77,6 +77,9 @@ def test_actual_quota_cli_and_real_authority(tmp_path,monkeypatch,provider,mode,
     if policy == 'evidence_atomic':
         from atomic_ranking_fixture import bind_atomic_evidence
         bind_atomic_evidence(tmp_path, config_file, capture_file, basis_file)
+    if policy == 'single_choice':
+        from single_choice_fixture import bind_single_choice
+        bind_single_choice(config_file)
     before=state.read_bytes() if state.exists() else None
     authority_before=read_canonical_todos_if_promoted(runtime_root=runtime,goal_id='goal-a')
     calls=[]
@@ -85,6 +88,9 @@ def test_actual_quota_cli_and_real_authority(tmp_path,monkeypatch,provider,mode,
         if policy == 'evidence_atomic':
             from atomic_ranking_fixture import atomic_response
             return atomic_response(*arguments)
+        if policy == 'single_choice':
+            from single_choice_fixture import single_choice_response
+            return single_choice_response(*arguments)
         return fixture_response(*arguments)
     assert execute(args,config_path=config_file,capture_path=capture_file,basis_path=basis_file,run_dir=run,
                    report_path=tmp_path/'report.json',invoke=invoke,transport=transport,credential=lambda:'fixture')==0
