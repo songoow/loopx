@@ -86,7 +86,7 @@ frontier、任务、profile、router 和资源变化。
 请先确认账号支持这个固定模型。此命令最多两次调用，只发送合成演示材料。
 端点固定为 TypeSafe HTTPS；不跟随重定向，不用环境代理，不自动换模型，不记录错误响应正文。
 未获有效回复时 live 演示返回非零；弃权与服务失败分开显示。查看 comparison.json 的
-assessments，不把一次 HTTP 成功当作效果证据。本次开发环境 DNS 不可用，尚无真实 Jev 质量结果。
+assessments，不把一次 HTTP 成功当作效果证据。已完成有限合成样例的真实调用，范围和限制见 [验证边界](VALIDATION.md)。
 
 ## 并发、恢复与关闭
 
@@ -122,3 +122,8 @@ selector/planner 的选择，再把同一组合法任务和该选择交给实际
 可选包新增 `loopx-jev assess`，提供六类显式材料判断，不安装原生 hook，也不替代
 上游 owner。参见[可运行示例与耗时边界](examples/advisory/README.zh-CN.md)，其中说明
 输入、开关、证据缺失、调用预算和各阶段耗时的准确含义。
+
+## 实验证据绑定策略
+
+参见[启用、证据绑定、关闭与本地测试](EVIDENCE_RANKING.zh-CN.md)。
+原 pairwise 保持默认；真实合成样例结果尚不支持把新证据门槛升级为默认优化。

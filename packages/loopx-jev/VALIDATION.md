@@ -158,3 +158,14 @@ node --no-warnings --experimental-sqlite --experimental-strip-types --test \
 Missing baseline causes explicit differential skips, not passing parity. No
 statistically supported quality/cost gain, PostgreSQL qualification, full-suite
 certification, long-horizon recovery or automatic upstream adoption is claimed.
+
+## Evidence-bound policy experiment
+
+The explicit `evidence_atomic` policy is implemented with local protocol and
+real CLI/File/SQLite tests. It remains experimental: a frozen synthetic comparison
+used 32 pairwise Jev calls, 28 atomic Jev calls plus four structural rejections,
+and 28 bounded Codex judgments plus the same four rejections. Atomic Jev produced
+26 abstentions and two failures, with no adopted ranking. Pairwise remained the
+default; no quality gain is claimed for the additional gate. This comparison did
+not execute the selected coding tasks or establish long-running host benefits.
+See [operation and limitations](EVIDENCE_RANKING.md).

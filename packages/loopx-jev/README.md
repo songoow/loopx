@@ -225,3 +225,9 @@ with the old Node. Do not restart a runtime serving unrelated Goals for a study.
 optional package. It does not install native hooks or replace upstream owners.
 See the [runnable examples and timing contract](examples/advisory/README.md) for
 input schemas, off/shadow/assist behavior, evidence limits and stage durations.
+
+## Experimental evidence-bound policy
+
+See [activation, evidence binding, rollback and local tests](EVIDENCE_RANKING.md).
+The original pairwise policy remains the default; live synthetic results do not
+support promoting the additional evidence gate as a quality improvement.
