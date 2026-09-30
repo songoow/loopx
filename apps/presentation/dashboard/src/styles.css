@@ -6,12 +6,21 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Font tokens. `docs/development/design.md` names these two variables as the
- * canonical families, so a stylesheet can reference them instead of repeating
- * a stack. Both are declared here because a bare `var(--font-mono)` with no
- * fallback drops the whole declaration when the token is missing, and the
- * browser then falls back to the body face — which is how code blocks and
- * monospace metadata silently rendered as sans-serif.
+ * Base colour tokens. `docs/development/design.md` names these as the canonical
+ * palette, and stylesheets referenced them through `var(--color-x, #fallback)`
+ * even though nothing defined them — so every reference silently took its
+ * fallback and the documented token names existed only as literals.
+ *
+ * They live in a plain `:root` block rather than a Tailwind `@theme` block on
+ * purpose: Tailwind v4 emits only the theme variables that some `var()` actually
+ * references, so a token nothing reads yet is dropped from the output. A single
+ * source of truth that disappears when unread is not a source of truth.
+ *
+ * Values match what the stylesheets already rendered through their fallbacks, so
+ * defining them changes nothing on screen. Where a workspace theme deliberately
+ * overrides a base token, that override stays explicit in
+ * `features/personal-workspace/personal-workspace.css` rather than being folded
+ * in here.
  *
  * `--font-mono` intentionally leads with the variable-font family name so it
  * matches the `@fontsource-variable/geist-mono` import above, with the static
@@ -19,6 +28,19 @@
  */
 :root {
   color-scheme: light;
+
+  --color-ink: #171717;
+  --color-body: #4d4d4d;
+  --color-muted: #8f8f8f;
+  --color-faint: #a1a1a1;
+  --color-canvas: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f2f2f2;
+  --color-border: #ebebeb;
+  --color-link: #0070f3;
+  --color-danger: #ee0000;
+  --color-warning: #f5a623;
+
   --font-sans:
     "Geist Variable", "Geist", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -2344,5 +2366,5 @@ select {
 }
 
 .personal-message-work-status { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem 1rem; }
-.personal-message-elapsed { color: var(--color-muted, #8f8f8f); font-size: 0.75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.personal-message-quiet { margin: 0.5rem 0 0; font-size: 0.75rem; color: var(--color-muted, #8f8f8f); }
+.personal-message-elapsed { color: var(--color-muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.personal-message-quiet { margin: 0.5rem 0 0; font-size: 0.75rem; color: var(--color-muted); }
