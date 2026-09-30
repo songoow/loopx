@@ -8,7 +8,7 @@
 .delivery-review button, .delivery-review select { border: 1px solid var(--pw-line); border-radius: 6px; background: var(--pw-card); min-height: 44px; padding: 8px 12px; cursor: pointer; }
 .delivery-review button:disabled { opacity: .5; cursor: not-allowed; }
 .delivery-review button[aria-pressed="true"] { border-color: var(--pw-text); background: var(--pw-hover, var(--pw-card)); }
-.delivery-review :is(button, input, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--color-link, #0070f3); outline-offset: 3px; }
+.delivery-review :is(button, input, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--color-link); outline-offset: 3px; }
 .delivery-review-toolbar, .delivery-chain-toolbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .delivery-review-toolbar > div, .delivery-chain-toolbar > div, .delivery-source-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .delivery-review-toolbar button, .delivery-source-actions button { display: inline-flex; gap: 8px; align-items: center; }
@@ -65,8 +65,8 @@
 .delivery-acceptance-tasks { display: grid; gap: 12px; }
 .delivery-acceptance-content details { border-top: 1px solid var(--pw-line); }
 .delivery-acceptance-content details summary { padding-left: 0; }
-.delivery-acceptance-content a { color: var(--color-link, #0070f3); text-decoration: underline; }
-.delivery-acceptance-content a:focus-visible { outline: 2px solid var(--color-link, #0070f3); outline-offset: 3px; }
+.delivery-acceptance-content a { color: var(--color-link); text-decoration: underline; }
+.delivery-acceptance-content a:focus-visible { outline: 2px solid var(--color-link); outline-offset: 3px; }
 @media (max-width: 640px) {
   .delivery-review { gap: 16px; }
   .delivery-review-toolbar > div { width: 100%; }

@@ -51,7 +51,10 @@ const SCOPES = {
     allowlistedFiles: new Set(),
     // Lower bound on how many definitions the scan must produce. See the
     // anti-vacuity guard in main() for why this is asserted from the tree.
-    definedTokenFloor: 30,
+    // Kept a little below the current count (45) so ordinary token churn does
+    // not trip it, while a scan that stops matching most declarations still
+    // fails loudly. Lower it in the same change that removes tokens.
+    definedTokenFloor: 43,
   },
 };
 

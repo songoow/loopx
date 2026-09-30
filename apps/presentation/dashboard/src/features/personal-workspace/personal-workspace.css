@@ -101,12 +101,12 @@
 .personal-goal-row:has(.personal-goal-move-actions) { grid-template-columns: minmax(0, 1fr) 52px 28px; }
 .personal-goal-row[data-reorder-goal] > .personal-goal-link { cursor: grab; user-select: none; }
 .personal-goal-row[data-reorder-goal] > .personal-goal-link:active { cursor: grabbing; }
-.personal-goal-row.is-drop-before { box-shadow: 0 -2px var(--color-link, #0070f3); }
-.personal-goal-row.is-drop-after { box-shadow: 0 2px var(--color-link, #0070f3); }
+.personal-goal-row.is-drop-before { box-shadow: 0 -2px var(--color-link); }
+.personal-goal-row.is-drop-after { box-shadow: 0 2px var(--color-link); }
 .personal-goal-move-actions { display: flex; }
 .personal-goal-move-actions button { display: grid; place-items: center; min-width: 26px; min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
 .personal-goal-move-actions button:disabled { opacity: .35; cursor: default; }
-.personal-goal-move-actions button:not(:disabled):hover { background: var(--color-surface-soft, #f2f2f2); }
+.personal-goal-move-actions button:not(:disabled):hover { background: var(--color-surface-soft); }
 .personal-goal-link { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 44px; padding: 7px 5px 7px 10px; border-radius: 11px; }
 .personal-goal-lifecycle { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--pw-faint); cursor: pointer; }
 .personal-goal-lifecycle:hover { background: #fff; color: var(--pw-text); box-shadow: 0 1px 3px rgb(30 28 20 / 12%); }
@@ -1830,7 +1830,7 @@
 }
 
 .personal-goal-acceptance h4 { margin: 16px 0 8px; font-size: 14px; }
-.personal-goal-acceptance .personal-acceptance-observation { border-top: 1px solid var(--color-border, #ebebeb); padding: 8px 0; }
+.personal-goal-acceptance .personal-acceptance-observation { border-top: 1px solid var(--color-border); padding: 8px 0; }
 .personal-goal-acceptance dd, .personal-goal-acceptance p { overflow-wrap: anywhere; }
 .personal-goal-acceptance details { margin-top: 16px; }
 

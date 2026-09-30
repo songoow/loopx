@@ -84,6 +84,24 @@ preview approval gate still applies.
 Use near-black rather than pure black for standard text. Use pure black only
 inside code or media surfaces where the stronger contrast is intentional.
 
+These tokens are declared in the Dashboard at
+`apps/presentation/dashboard/src/styles.css`, so a stylesheet references them
+instead of repeating a hex literal. They are declared in a plain `:root` block,
+not a Tailwind `@theme` block: Tailwind v4 emits only the theme variables that
+some `var()` actually references, so a token nothing reads yet is dropped from
+the build output.
+
+A stylesheet must not give a defined token a fallback. `var(--color-muted,
+#8f8f8f)` looks harmless and is how the palette previously drifted: the token was
+undefined everywhere, every reference silently took its fallback, and the
+documented names existed only as repeated literals. A fallback is appropriate
+only for a genuinely optional token.
+
+Where a workspace theme overrides a base token — the `loopx` and `paper` theme
+blocks in `features/personal-workspace/personal-workspace.css` — the override
+stays explicit, and its value may intentionally differ from the base. The base
+palette is the default, not a constraint on every theme.
+
 ### Accent Gradients
 
 Color is a controlled accent, not general chrome:
