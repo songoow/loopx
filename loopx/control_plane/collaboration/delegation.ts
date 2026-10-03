@@ -81,7 +81,13 @@ export function selectDelegationBinding(params: JsonObject): JsonObject {
   return binding;
 }
 
-type Observation = "prepared" | "running" | "turn_returned" | "accepted" | "rejected";
+type Observation = "prepared" | "running" | "turn_returned" | "accepted" | "rejected" | "stopped";
+/** How a stopped execution's supervised Host ended, named by the writer that observed it. */
+const hostSupervisions = ["not_launched", "returned", "unobserved"] as const;
+type HostSupervision = (typeof hostSupervisions)[number];
+/** What the host observed at the canonical lease authority for the execution's own lease. */
+const stopFences = ["pending", "released", "superseded", "not_acquired"] as const;
+type StopFence = (typeof stopFences)[number];
 
 function boundedReason(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
@@ -278,8 +284,8 @@ export function delegationPreflight(params: JsonObject): JsonObject {
   };
 }
 const transitions: Record<Observation, readonly Observation[]> = {
-  prepared: ["running", "rejected"], running: ["turn_returned", "rejected"],
-  turn_returned: ["accepted", "rejected"], accepted: [], rejected: [],
+  prepared: ["running", "rejected", "stopped"], running: ["turn_returned", "rejected", "stopped"],
+  turn_returned: ["accepted", "rejected", "stopped"], accepted: [], rejected: [], stopped: [],
 };
 
 /** Page only the caller's existing journal. A cursor is not a fleet snapshot. */
@@ -339,10 +345,47 @@ export function transitionDelegationObservation(params: JsonObject): JsonObject 
   if (to === "accepted") requireThat(params.canonical_done === true
     && params.acceptance_ready === true && params.artifacts_current === true,
   "accepted return requires current canonical completion and artifacts");
+  if (to === "stopped") requireThat(hostSupervisions.includes(params.host_supervision as HostSupervision),
+    "a stopped observation names how its Host supervision ended");
   if (to === "accepted" && from !== "accepted" && wakesItsConversation(params)) {
     return {status: to, wake_intent: delegationWakeIntent(params)};
   }
   return {status: to};
+}
+
+/** Derive the stop receipt phase from current facts; nothing here is persisted.
+ *
+ * The execution's own canonical lease is the only fence: once it is released,
+ * superseded by another epoch or never acquired, the authority refuses every
+ * renewal, completion and acquire replay from that execution, so continuing the
+ * Todo with a new operation is safe.  A prior terminal observation wins: a stop
+ * recorded after acceptance or rejection changes nothing.  Drain is read only
+ * from the ``stopped`` observation's own host-supervision fact, never from the
+ * fence, a signal, elapsed time or a missing process.
+ */
+export function decideDelegationStop(params: JsonObject): JsonObject {
+  const status = params.status as Observation;
+  requireThat(Object.hasOwn(transitions, status), "invalid delegation observation");
+  requireThat(stopFences.includes(params.fence as StopFence), "delegation stop fence fact required");
+  const supervision = params.host_supervision ?? null;
+  requireThat(supervision === null || hostSupervisions.includes(supervision as HostSupervision),
+    "invalid stopped host supervision fact");
+  requireThat((status === "stopped") === (supervision !== null),
+    "a stopped observation and its host supervision fact come together");
+  if (status === "accepted" || status === "rejected") {
+    return {phase: "noop", terminal: true, reason: "execution_already_settled", drain: null};
+  }
+  if (status === "stopped") {
+    if (supervision === "unobserved") {
+      return {phase: "revoked", terminal: true, reason: "host_supervision_unobserved", drain: "unobserved"};
+    }
+    return {phase: "drained", terminal: true, drain: supervision,
+      reason: supervision === "returned" ? "host_supervision_returned" : "host_not_launched"};
+  }
+  if (params.fence === "pending") {
+    return {phase: "requested", terminal: false, reason: "execution_lease_not_yet_exposed", drain: "pending"};
+  }
+  return {phase: "revoked", terminal: false, reason: `lease_${params.fence}`, drain: "pending"};
 }
 
 /** Whether an accepted result may produce a wake intent at all.

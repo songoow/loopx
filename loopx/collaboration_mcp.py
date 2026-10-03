@@ -747,6 +747,120 @@ class Delegations:
     def adopt_result(self, operation_id: str, consumer_operation_id: str) -> dict:
         return delegation_results.adopt_result(self, operation_id, consumer_operation_id)
 
+    def stop(self, operation_id: str, *, execute: bool) -> dict:
+        """Stop a delegated operation by releasing its canonical lease.
+
+        Requires the Goal's hard_lease authority. The lease release is the
+        only fence: after it commits, the authority rejects every renewal,
+        completion and acquire replay from that execution. The receipt phase
+        is derived from current facts on every read; drain is an observation.
+        """
+        if not execute:
+            raise ValueError("delegation stop requires --execute")
+        _goal(self.registry, self.goal_id, self.agent_id)
+        require_operation_id(operation_id)
+        path = self.path(operation_id)
+
+        intent = write_stop_intent(path, {"goal_id": self.goal_id, "agent_id": self.agent_id})
+
+        try:
+            row = _read(path)
+        except (OSError, ValueError, KeyError) as exc:
+            return {"schema_version": "loopx_delegation_stop_receipt_v0",
+                    "operation_id": operation_id, "stop_id": intent["stop_id"],
+                    "phase": "unavailable", "terminal": False, "drain": None,
+                    "error": f"operation record unavailable: {exc}"}
+
+        from .control_plane.work_items.task_lease import goal_handoff_mode_for_lease
+        handoff_mode = goal_handoff_mode_for_lease(self.registry, self.goal_id)
+        if handoff_mode != "hard_lease":
+            return {"schema_version": "loopx_delegation_stop_receipt_v0",
+                    "operation_id": operation_id, "stop_id": intent["stop_id"],
+                    "phase": "refused", "terminal": True, "drain": None,
+                    "error": f"stop requires hard_lease authority; Goal mode is {handoff_mode}"}
+
+        status = row.get("status")
+        if status in {"accepted", "rejected"}:
+            return {"schema_version": "loopx_delegation_stop_receipt_v0",
+                    "operation_id": operation_id, "stop_id": intent["stop_id"],
+                    "phase": "noop", "terminal": True, "drain": None,
+                    "reason": f"execution_already_{status}"}
+
+        task_lease = row.get("task_lease")
+        if not isinstance(task_lease, dict):
+            fence = "not_acquired"
+        else:
+            lease = task_lease.get("lease")
+            binding = task_lease.get("binding")
+            if not (isinstance(lease, dict) and isinstance(binding, dict)):
+                fence = "not_acquired"
+            elif lease.get("status") == "released":
+                fence = "released"
+            elif lease.get("status") != "active":
+                fence = "superseded"
+            else:
+                from .control_plane.work_items.task_lease import release_task_lease
+                try:
+                    result = release_task_lease(
+                        runtime_root=self.root, goal_id=self.goal_id,
+                        todo_id=binding["todo_id"], owner=binding["agent_id"],
+                        idempotency_key=lease["idempotency_key"],
+                        expected_version=lease["version"], registry_path=self.registry,
+                    )
+                    if result.get("ok"):
+                        fence = "released"
+                    elif result.get("error_code") == "version_mismatch":
+                        for _ in range(3):
+                            from .control_plane.work_items.task_lease import inspect_task_lease
+                            current = inspect_task_lease(
+                                registry_path=self.registry, runtime_root=self.root,
+                                goal_id=self.goal_id, todo_id=binding["todo_id"],
+                            )
+                            if not (current.get("ok") and current.get("active")):
+                                fence = "superseded" if current.get("lease", {}).get("status") else "not_acquired"
+                                break
+                            current_lease = current["lease"]
+                            if (current_lease["owner"] != lease["owner"]
+                                or current_lease["idempotency_key"] != lease["idempotency_key"]
+                                or current_lease["lease_epoch"] != lease["lease_epoch"]):
+                                fence = "superseded"
+                                break
+                            retry = release_task_lease(
+                                runtime_root=self.root, goal_id=self.goal_id,
+                                todo_id=binding["todo_id"], owner=binding["agent_id"],
+                                idempotency_key=lease["idempotency_key"],
+                                expected_version=current_lease["version"], registry_path=self.registry,
+                            )
+                            if retry.get("ok"):
+                                fence = "released"
+                                break
+                            if retry.get("error_code") != "version_mismatch":
+                                fence = retry.get("error_code", "release_failed")
+                                break
+                        else:
+                            fence = "version_mismatch_exhausted"
+                    else:
+                        fence = result.get("error_code", "release_failed")
+                except Exception as exc:
+                    fence = f"release_error: {exc}"
+
+        host_supervision = None
+        if status == "stopped":
+            host_supervision = row.get("host_supervision", "unobserved")
+
+        from .control_plane.effect_runtime import effect_runtime_result
+        decision = effect_runtime_result("collaboration.delegation.stop", {
+            "status": status, "fence": fence, "host_supervision": host_supervision,
+        })
+
+        receipt = {
+            "schema_version": "loopx_delegation_stop_receipt_v0",
+            "operation_id": operation_id, "stop_id": intent["stop_id"],
+            **decision,
+        }
+        _write(stop_receipt_path(path), receipt)
+        return receipt
+
     def read(self, operation_id: str) -> dict:
         result = self._read_current(operation_id)
         result.update(delegation_results.result_relationships(self, operation_id))
@@ -1246,6 +1360,10 @@ class Delegations:
         execution = self._execution_arguments(binding, row["identity"]["operation_id"])
         try:
             if row["status"] == "prepared":
+                if read_stop_intent(path) is not None:
+                    row["host_supervision"] = "not_launched"
+                    self._observe(path, row, "stopped")
+                    return
                 acceptance = delegation_validation.capture(self, binding)
                 if acceptance["plan"]["state"] != "ready" or not acceptance["files_current"]:
                     raise ValueError("delegation task acceptance rejected before host launch")
@@ -1258,6 +1376,10 @@ class Delegations:
                 # original claim, not by inventing a replacement execution.
                 self._acquire_delegation_lease(path, row, binding)
             if row["status"] == "running":
+                if read_stop_intent(path) is not None:
+                    row["host_supervision"] = "not_launched"
+                    self._observe(path, row, "stopped")
+                    return
                 turn_key = self._matching_turn_key(row, binding)
                 selector = (
                     ["--resume-turn-key", turn_key]
